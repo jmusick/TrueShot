@@ -4,6 +4,12 @@
 
 The addon does not try to recreate old full-state rotation engines. Instead, it uses Blizzard-provided rotation signals plus lightweight cast-event heuristics where that is still legal and reliable.
 
+`HunterFlow` is also intended to grow into a framework:
+
+- one engine
+- multiple spec profiles
+- explicit rules about what Blizzard's API still allows and what it does not
+
 ## Status
 
 `HunterFlow` is currently an `alpha`.
@@ -11,25 +17,26 @@ The addon does not try to recreate old full-state rotation engines. Instead, it 
 Current implementation focus:
 
 - Beast Mastery Hunter
-- Dark Ranger hero talent path
+- BM heuristics currently tuned around a tested Dark Ranger build
 
 Planned direction:
 
 - broader hunter support over time
 - more configurable overlays and profiles
 - additional spec-aware heuristics where the available API makes them defensible
+- frameworkized profile modules instead of one hard-coded alpha profile
 
 ## What It Does
 
 - Shows a compact hunter rotation queue on screen
 - Uses Blizzard `C_AssistedCombat` as the base recommendation source
 - Filters obvious utility noise such as `Call Pet` and `Revive Pet`
-- Supports BM / Dark Ranger-specific cast-tracked state for:
+- Supports BM-specific cast-tracked state for:
   - `Black Arrow`
   - `Bestial Wrath`
   - `Wailing Arrow`
   - `Nature's Ally`-style `Kill Command` weaving
-- Can pin `Counter Shot` when the target is casting
+- Keeps interrupt logic out of the primary queue by default
 - Supports click-through while locked
 
 ## Design Constraints
@@ -46,7 +53,18 @@ That means this addon aims to be:
 - conservative
 - transparent about what is heuristic vs. guaranteed
 
-It does **not** claim to be a full replacement for legacy Hekili-style simulation.
+It does **not** claim to be a full replacement for legacy full-state rotation simulation.
+
+## Framework Docs
+
+The framework direction is documented here:
+
+- [API Constraints](docs/API_CONSTRAINTS.md)
+- [Framework Model](docs/FRAMEWORK.md)
+- [Profile Contract](docs/PROFILE_CONTRACT.md)
+
+These docs are meant to capture the hard-won findings from the `Midnight` API changes so future class/spec integrations do not repeat the same mistakes.
+They describe the target architecture, not a claim that the current alpha is already fully modularized.
 
 ## Commands
 
@@ -74,9 +92,30 @@ World of Warcraft/_retail_/Interface/AddOns/
 The current alpha is honest but narrow:
 
 - branding is hunter-wide
-- the initial shipped profile is BM Hunter / Dark Ranger
+- the initial shipped profile is BM Hunter
+- the current BM heuristics were tested primarily against a Dark Ranger build
 
 If you use another hunter spec today, the addon will stay inactive instead of pretending to support behavior it does not yet model.
+
+## Long-Term Direction
+
+Near-term:
+
+- support more hunter specs and hero paths through explicit profiles
+- factor the current BM logic into a clearer profile module boundary
+- keep documenting which mechanics can be implemented directly, heuristically, or not at all
+
+If the project eventually becomes truly class-agnostic beyond hunters, the framework contract should already support that. The current public branding, however, is still intentionally hunter-focused.
+
+## Provenance
+
+The current `HunterFlow` codebase is an original standalone addon repository built around:
+
+- Blizzard `Assisted Combat`
+- direct in-game testing on Retail `Midnight`
+- cast-event-based heuristics developed during the initial BM alpha work
+
+It is not presented as a continuation of any prior branded addon. Historical research into older rotation addons informed design decisions, but this repository ships as its own project with its own code and release history.
 
 ## License
 

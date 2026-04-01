@@ -1,5 +1,7 @@
 -- HunterFlow M1.1: AssistedCombat queue with cast-tracked Hunter state
--- BM Hunter (Spec 253) proof of concept
+-- Copyright (C) 2026 itsDNNS
+-- Licensed under GPL-3.0-or-later. See LICENSE.
+-- Initial implementation scope: BM Hunter (Spec 253)
 
 ------------------------------------------------------------------------
 -- Saved variables & defaults
