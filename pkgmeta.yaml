@@ -1,0 +1,13 @@
+package-as: TrueShot
+
+ignore:
+  - .git
+  - .gitignore
+  - .vscode
+  - .idea
+  - tasks
+  - docs/specs
+  - "*.zip"
+  - "*.bak"
+  - pkgmeta.yaml
+  - README.md
