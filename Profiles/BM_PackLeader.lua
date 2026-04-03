@@ -1,5 +1,5 @@
 -- TrueShot Profile: Beast Mastery / Pack Leader (Spec 253)
--- Simpler than Dark Ranger: BW management, Nature's Ally weaving, charge dump
+-- Simpler than Dark Ranger: BW management, Nature's Ally weaving
 
 local Engine = TrueShot.Engine
 
@@ -35,27 +35,12 @@ local Profile = {
             condition = { type = "target_count", op = ">=", value = 3 },
         },
 
-        -- Bestial Wrath: suppress when on CD or when Barbed Shot charges remain
+        -- Bestial Wrath: suppress only when on CD (WCL data: top players press BW
+        -- immediately, even with BS charges available -- 26-55% of BW casts had charges)
         {
             type = "BLACKLIST_CONDITIONAL",
             spellID = 19574,
-            condition = {
-                type = "or",
-                left  = { type = "bw_on_cd" },
-                right = { type = "spell_charges", spellID = 217200, op = ">", value = 0 },
-            },
-        },
-
-        -- Barbed Shot charge dump: spend charges when BW is nearly ready
-        {
-            type = "PREFER",
-            spellID = 217200, -- Barbed Shot
-            reason = "Charge Dump",
-            condition = {
-                type = "and",
-                left  = { type = "spell_charges", spellID = 217200, op = ">", value = 0 },
-                right = { type = "bw_nearly_ready" },
-            },
+            condition = { type = "bw_on_cd" },
         },
 
         -- Nature's Ally: never Kill Command twice in a row
@@ -108,9 +93,6 @@ function Profile:EvalCondition(cond)
         if s.lastBWCast == 0 then return false end
         return (GetTime() - s.lastBWCast) < BW_COOLDOWN
 
-    elseif cond.type == "bw_nearly_ready" then
-        if s.lastBWCast == 0 then return false end
-        return (GetTime() - s.lastBWCast) >= (BW_COOLDOWN - 3)
     end
 
     return nil -- not handled by this profile
@@ -139,16 +121,6 @@ function Profile:GetPhase()
     if not UnitAffectingCombat("player") then return nil end
     local s = self.state
     if s.lastBWCast > 0 and (GetTime() - s.lastBWCast) < 15 then return "Burst" end
-    if s.lastBWCast > 0 and (GetTime() - s.lastBWCast) >= (BW_COOLDOWN - 3) then
-        if C_Spell and C_Spell.GetSpellCharges then
-            local ok, info = pcall(C_Spell.GetSpellCharges, 217200)
-            if ok and info and info.currentCharges then
-                if not (issecretvalue and issecretvalue(info.currentCharges)) and info.currentCharges > 0 then
-                    return "Charge Dump"
-                end
-            end
-        end
-    end
     return nil
 end
 

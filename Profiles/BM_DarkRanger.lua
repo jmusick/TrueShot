@@ -31,15 +31,12 @@ local Profile = {
         { type = "BLACKLIST", spellID = 982 },    -- Revive Pet
         { type = "BLACKLIST", spellID = 147362 }, -- Counter Shot (user preference)
 
-        -- Bestial Wrath: suppress when on CD or when Barbed Shot charges remain
+        -- Bestial Wrath: suppress only when on CD (WCL data: top players press BW
+        -- immediately, even with BS charges available -- 26-55% of BW casts had charges)
         {
             type = "BLACKLIST_CONDITIONAL",
             spellID = 19574,
-            condition = {
-                type = "or",
-                left  = { type = "bw_on_cd" },
-                right = { type = "spell_charges", spellID = 217200, op = ">", value = 0 },
-            },
+            condition = { type = "bw_on_cd" },
         },
 
         -- During Withering Fire: Black Arrow is highest DPS priority
@@ -66,7 +63,7 @@ local Profile = {
             },
         },
 
-        -- Outside Withering Fire: prefer Black Arrow when ready (above charge dump)
+        -- Outside Withering Fire: prefer Black Arrow when ready
         {
             type = "PREFER",
             spellID = 466930, -- Black Arrow
@@ -75,18 +72,6 @@ local Profile = {
                 type = "and",
                 left  = { type = "ba_ready" },
                 right = { type = "not", inner = { type = "in_withering_fire" } },
-            },
-        },
-
-        -- Barbed Shot charge dump: spend charges when BW is nearly ready (below BA)
-        {
-            type = "PREFER",
-            spellID = 217200, -- Barbed Shot
-            reason = "Charge Dump",
-            condition = {
-                type = "and",
-                left  = { type = "spell_charges", spellID = 217200, op = ">", value = 0 },
-                right = { type = "bw_nearly_ready" },
             },
         },
 
@@ -193,9 +178,6 @@ function Profile:EvalCondition(cond)
         if s.lastBWCast == 0 then return false end
         return (GetTime() - s.lastBWCast) < BW_COOLDOWN
 
-    elseif cond.type == "bw_nearly_ready" then
-        if s.lastBWCast == 0 then return false end
-        return (GetTime() - s.lastBWCast) >= (BW_COOLDOWN - 3)
     end
 
     return nil -- not handled by this profile
@@ -226,16 +208,6 @@ function Profile:GetPhase()
     if not UnitAffectingCombat("player") then return nil end
     local s = self.state
     if GetTime() < s.witheringFireUntil then return "Burst" end
-    if s.lastBWCast > 0 and (GetTime() - s.lastBWCast) >= (BW_COOLDOWN - 3) then
-        if C_Spell and C_Spell.GetSpellCharges then
-            local ok, info = pcall(C_Spell.GetSpellCharges, 217200)
-            if ok and info and info.currentCharges then
-                if not (issecretvalue and issecretvalue(info.currentCharges)) and info.currentCharges > 0 then
-                    return "Charge Dump"
-                end
-            end
-        end
-    end
     return nil
 end
 
