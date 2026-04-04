@@ -25,14 +25,7 @@ local Profile = {
     rules = {
         -- Filter utility spells
         { type = "BLACKLIST", spellID = 217832 }, -- Imprison
-
-        -- Essence Break: prefer during Metamorphosis for maximum burst value
-        {
-            type = "PREFER",
-            spellID = 258860, -- Essence Break
-            reason = "Meta Burst",
-            condition = { type = "in_meta_window" },
-        },
+        -- WCL data: no Essence Break in top parses. AC handles Meta burst.
     },
 }
 
