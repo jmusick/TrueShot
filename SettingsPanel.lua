@@ -266,16 +266,25 @@ local function CreateSettingsPanel()
         end
     end
 
+    local applyingFromEnter = false
     xEdit:SetScript("OnEnterPressed", function(self)
+        applyingFromEnter = true
         ApplyPositionFromInputs()
         self:ClearFocus()
+        applyingFromEnter = false
     end)
     yEdit:SetScript("OnEnterPressed", function(self)
+        applyingFromEnter = true
         ApplyPositionFromInputs()
         self:ClearFocus()
+        applyingFromEnter = false
     end)
-    xEdit:SetScript("OnEditFocusLost", ApplyPositionFromInputs)
-    yEdit:SetScript("OnEditFocusLost", ApplyPositionFromInputs)
+    xEdit:SetScript("OnEditFocusLost", function()
+        if not applyingFromEnter then ApplyPositionFromInputs() end
+    end)
+    yEdit:SetScript("OnEditFocusLost", function()
+        if not applyingFromEnter then ApplyPositionFromInputs() end
+    end)
     applyCoordsButton:SetScript("OnClick", ApplyPositionFromInputs)
 
     -- Orientation
@@ -376,6 +385,7 @@ local function CreateSettingsPanel()
     end)
 
     panel:SetScript("OnUpdate", function(_, elapsed)
+        if not panel:IsShown() then return end
         panel._coordsElapsed = (panel._coordsElapsed or 0) + elapsed
         if panel._coordsElapsed < 0.2 then return end
         panel._coordsElapsed = 0

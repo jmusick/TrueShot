@@ -756,12 +756,13 @@ function Display:SetPositionOffsets(xOfs, yOfs)
         return false
     end
 
-    local point, _, relativePoint = container:GetPoint(1)
+    local point, relativeTo, relativePoint = container:GetPoint(1)
     point = point or "CENTER"
     relativePoint = relativePoint or point
+    relativeTo = relativeTo or UIParent
 
     container:ClearAllPoints()
-    container:SetPoint(point, UIParent, relativePoint, xOfs, yOfs)
+    container:SetPoint(point, relativeTo, relativePoint, xOfs, yOfs)
 
     TrueShot.SetOpt("posPoint", point)
     TrueShot.SetOpt("posRelPoint", relativePoint)
