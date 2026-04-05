@@ -5,7 +5,7 @@ local Engine = TrueShot.Engine
 
 local BA_COOLDOWN = 10
 local BW_COOLDOWN = 30
-local WT_COOLDOWN = 10
+local WT_COOLDOWN = 8
 
 ------------------------------------------------------------------------
 -- Profile definition
