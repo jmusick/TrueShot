@@ -1,5 +1,5 @@
 -- TrueShot Profile: Frost / Frostfire (Spec 64)
--- Ice Lance proc-driven rotation with Glacial Spike shatter combos
+-- Shatter combo enforcement + Frozen Orb burst tracking
 
 local Engine = TrueShot.Engine
 
@@ -13,11 +13,20 @@ local Profile = {
 
     state = {
         frozenOrbActiveUntil = 0,
+        lastCastWasFlurry = false,
     },
 
     rules = {
         { type = "BLACKLIST", spellID = 118 },     -- Polymorph
         { type = "BLACKLIST", spellID = 30449 },   -- Spellsteal
+
+        -- Shatter combo: Ice Lance after Flurry (WCL: 66% natural, boost remaining 34%)
+        {
+            type = "PREFER",
+            spellID = 30455, -- Ice Lance
+            reason = "Shatter",
+            condition = { type = "last_cast_was_flurry" },
+        },
 
         -- Blizzard: AoE preference when 3+ targets
         {
@@ -31,31 +40,41 @@ local Profile = {
 
 function Profile:ResetState()
     self.state.frozenOrbActiveUntil = 0
+    self.state.lastCastWasFlurry = false
 end
 
 function Profile:OnSpellCast(spellID)
+    local s = self.state
+
     if spellID == 84714 then -- Frozen Orb
-        self.state.frozenOrbActiveUntil = GetTime() + FROZEN_ORB_DURATION
+        s.frozenOrbActiveUntil = GetTime() + FROZEN_ORB_DURATION
     end
+
+    s.lastCastWasFlurry = (spellID == 44614) -- Flurry
 end
 
 function Profile:OnCombatEnd()
     self.state.frozenOrbActiveUntil = 0
+    self.state.lastCastWasFlurry = false
 end
 
 function Profile:EvalCondition(cond)
     if cond.type == "frozen_orb_active" then
         return GetTime() < self.state.frozenOrbActiveUntil
+    elseif cond.type == "last_cast_was_flurry" then
+        return self.state.lastCastWasFlurry
     end
     return nil
 end
 
 function Profile:GetDebugLines()
-    local orbRemaining = self.state.frozenOrbActiveUntil - GetTime()
+    local s = self.state
+    local orbRemaining = s.frozenOrbActiveUntil - GetTime()
     return {
         "  Frozen Orb: " .. (orbRemaining > 0
             and string.format("%.1fs remaining", orbRemaining)
             or "inactive"),
+        "  Last cast Flurry: " .. tostring(s.lastCastWasFlurry),
     }
 end
 
