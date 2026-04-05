@@ -6,48 +6,36 @@
 
 A World of Warcraft addon for Retail Midnight that layers rotation fixes on top of Blizzard's Assisted Combat system.
 
-Blizzard's built-in rotation helper handles ~95% of ability prioritization correctly. TrueShot identifies the remaining cases where it doesn't and overrides them with cast-event-tracked heuristics.
+Blizzard's built-in rotation helper handles ~95% of ability prioritization correctly. TrueShot identifies the remaining cases where it doesn't and overrides them with cast-event-tracked heuristics, validated against WarcraftLogs data from top-performing players.
 
 ## Supported Classes
 
-TrueShot currently supports three classes with 14 hero-path-specific profiles. Hero path auto-detection works via `IsPlayerSpell` markers and switches automatically on talent changes.
+### Hunter (Primary)
 
-### Hunter
-
-All three Hunter specs are fully validated in-game with detailed cast-event state machines.
+TrueShot is built for Hunters. All three specs are fully validated in-game with WCL-backed rotation analysis and detailed cast-event state machines.
 
 | Spec | Hero Path | Key Overrides |
 |------|-----------|---------------|
-| **Beast Mastery** | Dark Ranger | Black Arrow timing during Withering Fire, Wailing Arrow sequencing, Barbed Shot charge dump |
-| **Beast Mastery** | Pack Leader | Bestial Wrath management, Nature's Ally KC weaving, Wild Thrash AoE |
-| **Marksmanship** | Dark Ranger | Trueshot opener sequence (TS > BA > WA > BA), Volley/Trueshot anti-overlap, Withering Fire BA priority |
+| **Beast Mastery** | Dark Ranger | Black Arrow during Withering Fire, Wailing Arrow sequencing, AoE hint for Wild Thrash |
+| **Beast Mastery** | Pack Leader | Nature's Ally KC weaving, Wild Thrash AoE hint, Bestial Wrath timing |
+| **Marksmanship** | Dark Ranger | Trueshot opener sequence, Volley/Trueshot anti-overlap, Withering Fire BA priority |
 | **Marksmanship** | Sentinel | Post-Rapid Fire Trueshot gating, Volley anti-overlap, Moonlight Chakram filler timing |
-| **Survival** | Pack Leader | Stampede KC sequencing after Takedown, WFB charge cap prevention, Takedown burst window |
-| **Survival** | Sentinel | WFB charge management with near-cap cutoff, Moonlight Chakram timing, Takedown burst window |
+| **Survival** | Pack Leader | Stampede KC sequencing, Boomstick CD tracking, Takedown burst window, Hatchet Toss melee gating |
+| **Survival** | Sentinel | WFB charge management, Boomstick CD tracking, Moonlight Chakram timing, Hatchet Toss melee gating |
 
-### Demon Hunter
+### Demon Hunter, Druid, Mage (Alpha)
 
-Havoc provides meaningful burst window tracking. Devourer is heavily AC-reliant due to hidden resource state (Souls, Voidfall stacks, Fury).
+These classes have profile support with burst window tracking and hero path auto-detection. However, we don't play these classes ourselves and rely on community feedback for validation.
 
-| Spec | Hero Path | Key Overrides |
-|------|-----------|---------------|
-| **Havoc** | Aldrachi Reaver | Metamorphosis burst window tracking, Essence Break timing during Meta |
-| **Havoc** | Fel-Scarred | Metamorphosis burst window tracking, Essence Break timing during Meta |
-| **Devourer** | Annihilator | Void Metamorphosis window tracking, phase detection |
-| **Devourer** | Void-Scarred | Void Metamorphosis window tracking, phase detection |
+**If you play one of these classes and notice something off or want to suggest changes, please [open an issue](https://github.com/itsDNNS/TrueShot/issues).**
 
-### Druid
+| Class | Specs | Profiles | Notes |
+|-------|-------|----------|-------|
+| **Demon Hunter** | Havoc, Devourer | 4 | Metamorphosis burst tracking. Devourer is heavily AC-reliant. |
+| **Druid** | Feral, Balance | 4 | Tiger's Fury/Berserk and Celestial Alignment burst tracking. Resource-dependent (Energy, Astral Power) limits overrides. |
+| **Mage** | Fire, Frost, Arcane | 6 | Combustion, Frozen Orb, Arcane Surge burst windows. Frost shatter combo (Flurry > Ice Lance). |
 
-Both specs are heavily resource-dependent (Energy/CP for Feral, Astral Power for Balance). TrueShot provides burst window tracking and phase detection.
-
-| Spec | Hero Path | Key Overrides |
-|------|-----------|---------------|
-| **Feral** | Druid of the Claw | Tiger's Fury + Berserk burst tracking, Berserk/TF alignment |
-| **Feral** | Wildstalker | Tiger's Fury + Berserk burst tracking, Berserk/TF alignment |
-| **Balance** | Keeper of the Grove | Celestial Alignment / Incarnation burst tracking |
-| **Balance** | Elune's Chosen | Celestial Alignment / Incarnation burst tracking |
-
-> **Note:** Demon Hunter and Druid profiles are based on Icy Veins rotation guides and Wowhead spell data. Spell IDs and burst window timers may need adjustment after in-game validation.
+All 20 profiles across 4 classes support automatic hero path detection via `IsPlayerSpell` markers.
 
 ## How It Works
 
@@ -62,17 +50,18 @@ State tracking is purely event-driven via `UNIT_SPELLCAST_SUCCEEDED`. No buff re
 
 ## Display Features
 
-- Compact queue overlay with configurable icon count
+- Compact queue overlay with configurable icon count and position
+- **AoE hint icon** with bounce animation for AoE abilities (e.g. Wild Thrash)
+- **Queue stabilization** prevents icon flicker from AC instability
 - **Masque support** for icon skinning (optional, zero-dependency)
 - **First-icon scale** (1.0x - 2.0x) for visual hierarchy
 - **Queue orientation** (LEFT / RIGHT / UP / DOWN)
 - **Override glow** with pulsing animation (cyan for PIN, blue for PREFER)
-- **Charge cooldown** edge ring for multi-charge spells (Barbed Shot, Aimed Shot, Wildfire Bomb)
-- **DurationObject cooldown path** for secret-safe rendering on modern builds
-- Keybind display, range indicator, cast success feedback
-- Cooldown swipes (best-effort, respects Midnight restrictions)
+- **Charge cooldown** edge ring for multi-charge spells
+- **Keybind display** with macro and ElvUI action bar support
+- Cast success feedback, range indicator, cooldown swipes
 - Optional backdrop toggle for clean floating-icons look
-- Scrollable settings panel via `/ts options`
+- Settings panel via `/ts options` with X/Y position controls
 - Tiered update rates (10Hz combat, 2Hz idle, 0Hz hidden)
 
 ## Installation
@@ -84,7 +73,7 @@ World of Warcraft/_retail_/Interface/AddOns/
 ```
 
 2. Restart WoW or `/reload`.
-3. Log into a supported class (Hunter, Demon Hunter, or Druid).
+3. Log into a supported class (Hunter, Demon Hunter, Druid, or Mage).
 
 ## Commands
 
