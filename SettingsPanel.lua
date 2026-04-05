@@ -198,11 +198,18 @@ local function CreateSettingsPanel()
         whyDesc, "showAoeHint"
     )
 
+    local glowCheck, glowDesc = CreateCheckbox(
+        content,
+        "Show override glow",
+        "Pulsing glow on the first icon when TrueShot overrides Assisted Combat (cyan for PIN, blue for PREFER).",
+        aoeHintDesc, "showOverrideIndicator"
+    )
+
     local backdropCheck, backdropDesc = CreateCheckbox(
         content,
         "Show Backdrop",
         "Show the dark background behind the queue overlay.",
-        aoeHintDesc, "showBackdrop"
+        glowDesc, "showBackdrop"
     )
 
     local coordInputsLabel = content:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
