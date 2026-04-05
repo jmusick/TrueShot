@@ -19,6 +19,12 @@ local MIN_COOLDOWN_SWIPE_DURATION = 2.0
 local CONTAINER_PADDING_X = 8
 local CONTAINER_PADDING_Y = 6
 local ICON_TEXTURE_INSET = 3
+local QUEUE_STABILIZATION_TICKS = 2
+
+local displayedQueueState = { count = 0 }
+local pendingQueueState = { count = 0 }
+local pendingQueueTicks = 0
+local allowImmediateQueueUpdate = false
 
 ------------------------------------------------------------------------
 -- Container frame
@@ -92,6 +98,40 @@ local function ClearCooldown(icon)
         icon.cooldown:SetCooldown(0, 0)
     end
     icon.cooldown:Hide()
+end
+
+local function ResetStoredQueue(state)
+    local prevCount = state.count or 0
+    for i = 1, prevCount do
+        state[i] = nil
+    end
+    state.count = 0
+end
+
+local function StoreQueue(state, queue, count)
+    local prevCount = state.count or 0
+    for i = 1, count do
+        state[i] = queue[i]
+    end
+    for i = count + 1, prevCount do
+        state[i] = nil
+    end
+    state.count = count
+end
+
+local function QueuesMatch(state, queue, count)
+    if (state.count or 0) ~= count then return false end
+    for i = 1, count do
+        if state[i] ~= queue[i] then
+            return false
+        end
+    end
+    return true
+end
+
+local function ClearPendingQueue()
+    ResetStoredQueue(pendingQueueState)
+    pendingQueueTicks = 0
 end
 
 local keybindCache = {}
@@ -848,14 +888,74 @@ function Display:UpdateQueue(queue)
     end
 end
 
+function Display:RenderQueueNow(queue)
+    self:UpdateQueue(queue)
+    StoreQueue(displayedQueueState, queue, TrueShot.GetOpt("iconCount"))
+    ClearPendingQueue()
+    allowImmediateQueueUpdate = false
+end
+
+function Display:ResetQueueStabilization()
+    ClearPendingQueue()
+    allowImmediateQueueUpdate = false
+end
+
+function Display:FlushQueueStabilization()
+    ClearPendingQueue()
+    allowImmediateQueueUpdate = true
+end
+
+function Display:ConsumeQueueUpdate(queue, inCombat)
+    local count = TrueShot.GetOpt("iconCount")
+
+    if not inCombat then
+        self:RenderQueueNow(queue)
+        return
+    end
+
+    if allowImmediateQueueUpdate then
+        self:RenderQueueNow(queue)
+        return
+    end
+
+    if QueuesMatch(displayedQueueState, queue, count) then
+        ClearPendingQueue()
+        -- Still run UpdateQueue for per-tick visuals (cooldown swipes, cast feedback, range tint)
+        self:UpdateQueue(queue)
+        return
+    end
+
+    if QueuesMatch(pendingQueueState, queue, count) then
+        pendingQueueTicks = pendingQueueTicks + 1
+    else
+        StoreQueue(pendingQueueState, queue, count)
+        pendingQueueTicks = 1
+    end
+
+    if pendingQueueTicks >= QUEUE_STABILIZATION_TICKS then
+        self:RenderQueueNow(queue)
+    else
+        -- Pending but not stable yet: refresh visuals with currently displayed spells
+        self:UpdateQueue(displayedQueueState)
+    end
+end
+
 function Display:OnSpellCastSucceeded(spellID)
-    if not TrueShot.GetOpt("showCastFeedback") then return end
-    local now = GetTime()
-    for _, icon in ipairs(icons) do
-        if icon.spellID == spellID then
-            icon.successUntil = now + SUCCESS_FLASH_DURATION
-            self:UpdateCastFeedback(icon, now)
+    if TrueShot.GetOpt("showCastFeedback") then
+        local now = GetTime()
+        for _, icon in ipairs(icons) do
+            if icon.spellID == spellID then
+                icon.successUntil = now + SUCCESS_FLASH_DURATION
+                self:UpdateCastFeedback(icon, now)
+            end
         end
+    end
+
+    self:FlushQueueStabilization()
+
+    if container:IsShown() then
+        local queue = Engine:ComputeQueue(TrueShot.GetOpt("iconCount"))
+        self:ConsumeQueueUpdate(queue, UnitAffectingCombat("player"))
     end
 end
 
@@ -881,6 +981,7 @@ function Display:Enable()
     EnsureIcons()
     container:EnableMouse(not TrueShot.GetOpt("locked"))
     container:Show()
+    self:FlushQueueStabilization()
     timeSinceUpdate = IDLE_INTERVAL  -- force immediate first update in any tier
     container:SetScript("OnUpdate", function(_, elapsed)
         timeSinceUpdate = timeSinceUpdate + elapsed
@@ -899,11 +1000,13 @@ function Display:Enable()
         timeSinceUpdate = 0
 
         local queue = Engine:ComputeQueue(TrueShot.GetOpt("iconCount"))
-        Display:UpdateQueue(queue)
+        Display:ConsumeQueueUpdate(queue, inCombat)
     end)
 end
 
 function Display:Disable()
+    self:ResetQueueStabilization()
+    ResetStoredQueue(displayedQueueState)
     container:SetScript("OnUpdate", nil)
     container:Hide()
 end

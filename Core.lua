@@ -166,12 +166,18 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
 
     elseif event == "PLAYER_REGEN_DISABLED" then
         Engine.combatStartTime = GetTime()
+        if Display and Display.ResetQueueStabilization then
+            Display:ResetQueueStabilization()
+        end
         if Display and Display.MarkDirty then Display:MarkDirty() end
         ReconcileVisibility()
 
     elseif event == "PLAYER_REGEN_ENABLED" then
         Engine.combatStartTime = nil
         Engine:OnCombatEnd()
+        if Display and Display.ResetQueueStabilization then
+            Display:ResetQueueStabilization()
+        end
         if Display and Display.MarkDirty then Display:MarkDirty() end
         ReconcileVisibility()
 
@@ -193,7 +199,11 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         -- Force immediate display refresh after any spell/talent change
         if Display and Display.container and Display.container:IsShown() then
             local queue = Engine:ComputeQueue(TrueShot.GetOpt("iconCount"))
-            Display:UpdateQueue(queue)
+            if Display.RenderQueueNow then
+                Display:RenderQueueNow(queue)
+            else
+                Display:UpdateQueue(queue)
+            end
         end
         -- Delayed re-check: spellbook may still be updating
         C_Timer.After(0.5, function()
@@ -206,7 +216,11 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             ReconcileVisibility()
             if Display and Display.container and Display.container:IsShown() then
                 local queue = Engine:ComputeQueue(TrueShot.GetOpt("iconCount"))
-                Display:UpdateQueue(queue)
+                if Display.RenderQueueNow then
+                    Display:RenderQueueNow(queue)
+                else
+                    Display:UpdateQueue(queue)
+                end
             end
         end)
     end
