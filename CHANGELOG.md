@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.15.0 - 2026-04-07
+
+### Changed
+- Action bar cooldown durations used for overlay (more accurate than spell API)
+
+## v0.14.7 - 2026-04-05
+
+### Changed
+- Chat messages on login/profile switch now disabled by default
+- New setting: "Show chat messages on login"
+
+## v0.14.6 - 2026-04-05
+
+### Changed
+- Override glow now enabled by default (cyan pulse for PIN, blue for PREFER)
+- New setting: "Show override glow"
+
+### Removed
+- 95% accuracy claim from README
+
 ## v0.14.5 - 2026-04-05
 
 ### Added
