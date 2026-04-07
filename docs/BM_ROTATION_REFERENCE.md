@@ -1,8 +1,8 @@
 # BM Rotation Reference
 
-Source: Azortharion BM Guide for Midnight Season 1
+Source: Azortharion (Icy Veins BM Guide + Video Guide for Midnight Season 1)
 Video: https://youtu.be/GQiL-H8IZwA
-Supplementary: WCL analysis (40+ raid parses, 157 M+ parses), Icy Veins
+Supplementary: WCL analysis (40+ raid parses, 157 M+ parses)
 
 This document is the authoritative reference for rule ordering in `Profiles/BM_DarkRanger.lua` and `Profiles/BM_PackLeader.lua`. When profile rules are changed, verify them against this priority list.
 
