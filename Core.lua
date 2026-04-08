@@ -33,6 +33,8 @@ local DEFAULTS = {
     showBackdrop = true,
     showAoeHint = true,
     showLoginMessage = false,
+    showScorecard = true,
+    showHeartbeat = true,
 }
 
 local optionCallbacks = {}
@@ -172,6 +174,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
 
     elseif event == "PLAYER_REGEN_DISABLED" then
         Engine.combatStartTime = GetTime()
+        if TrueShot.CombatTrace then TrueShot.CombatTrace:Reset() end
         if Display and Display.ResetQueueStabilization then
             Display:ResetQueueStabilization()
         end
@@ -179,6 +182,10 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         ReconcileVisibility()
 
     elseif event == "PLAYER_REGEN_ENABLED" then
+        if TrueShot.Scorecard and Engine.combatStartTime then
+            local combatDuration = GetTime() - Engine.combatStartTime
+            TrueShot.Scorecard:OnCombatEnd(combatDuration)
+        end
         Engine.combatStartTime = nil
         Engine:OnCombatEnd()
         if Display and Display.ResetQueueStabilization then
@@ -319,6 +326,13 @@ SlashCmdList["TRUESHOT"] = function(msg)
         local probeArgs = msg:sub(7) or ""
         TrueShot.SignalProbe:HandleCommand(probeArgs)
 
+    elseif msg == "score" or msg == "scores" then
+        if TrueShot.Scorecard then
+            TrueShot.Scorecard:PrintHistory(5)
+        else
+            print("|cff00ff00[TS]|r Scorecard not loaded.")
+        end
+
     elseif msg == "help" then
         print("|cff00ff00[TrueShot]|r Commands:")
         print("  /ts lock    - Lock frame (click-through)")
@@ -328,6 +342,7 @@ SlashCmdList["TRUESHOT"] = function(msg)
         print("  /ts hide    - Hide the display")
         print("  /ts show    - Show the display")
         print("  /ts debug   - Print queue and profile state")
+        print("  /ts score   - Show recent alignment scores")
         print("  /ts diagnostics on|off - Enable or disable probe diagnostics")
         print("  /ts probe   - Signal validation probes (only when diagnostics are enabled)")
 

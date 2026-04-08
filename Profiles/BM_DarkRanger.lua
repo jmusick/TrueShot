@@ -17,6 +17,18 @@ local Profile = {
     specID = 253,
     markerSpell = 466930, -- Black Arrow (Dark Ranger exclusive)
 
+    rotationalSpells = {
+        [34026]   = true, -- Kill Command
+        [466930]  = true, -- Black Arrow
+        [19574]   = true, -- Bestial Wrath
+        [392060]  = true, -- Wailing Arrow
+        [1264359] = true, -- Wild Thrash
+        [56641]   = true, -- Steady Shot
+        [217200]  = true, -- Barbed Shot
+        [120360]  = true, -- Barrage
+        [53351]   = true, -- Kill Shot
+    },
+
     state = {
         blackArrowReady = true,
         lastBlackArrowCast = 0,

@@ -39,6 +39,17 @@ local Profile = {
         lastVolleyCast = 0,
     },
 
+    rotationalSpells = {
+        [288613]  = true, -- Trueshot
+        [257044]  = true, -- Rapid Fire
+        [260243]  = true, -- Volley
+        [19434]   = true, -- Aimed Shot
+        [1264902] = true, -- Moonlight Chakram
+        [56641]   = true, -- Steady Shot
+        [53351]   = true, -- Kill Shot
+        [185358]  = true, -- Arcane Shot
+    },
+
     rules = {
         -- Filter utility spells
         { type = "BLACKLIST", spellID = SPELLS.CallPet1 },

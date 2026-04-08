@@ -33,6 +33,18 @@ local Profile = {
     specID = 254,
     markerSpell = SPELLS.BlackArrow,
 
+    rotationalSpells = {
+        [466930]  = true, -- Black Arrow
+        [392060]  = true, -- Wailing Arrow
+        [288613]  = true, -- Trueshot
+        [257044]  = true, -- Rapid Fire
+        [260243]  = true, -- Volley
+        [19434]   = true, -- Aimed Shot
+        [56641]   = true, -- Steady Shot
+        [53351]   = true, -- Kill Shot
+        [185358]  = true, -- Arcane Shot
+    },
+
     state = {
         blackArrowReady = true,
         lastBlackArrowCast = 0,

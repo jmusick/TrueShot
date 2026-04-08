@@ -219,8 +219,22 @@ local function CreateSettingsPanel()
         loginDesc, "showBackdrop"
     )
 
+    local scorecardCheck, scorecardDesc = CreateCheckbox(
+        content,
+        "Show alignment scorecard",
+        "Display a rotation alignment report in chat after each combat (min 8s fight, 5+ casts).",
+        backdropDesc, "showScorecard"
+    )
+
+    local heartbeatCheck, heartbeatDesc = CreateCheckbox(
+        content,
+        "Show GCD heartbeat",
+        "Display a scrolling rhythm strip below the overlay showing cast alignment in real-time.",
+        scorecardDesc, "showHeartbeat"
+    )
+
     local coordInputsLabel = content:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    coordInputsLabel:SetPoint("TOPLEFT", backdropDesc, "BOTTOMLEFT", 0, -10)
+    coordInputsLabel:SetPoint("TOPLEFT", heartbeatDesc, "BOTTOMLEFT", 0, -10)
     coordInputsLabel:SetText("Position offsets (UIParent)")
 
     local coordInputsRow = CreateFrame("Frame", nil, content)
@@ -391,6 +405,8 @@ local function CreateSettingsPanel()
         whyCheck.sync()
         aoeHintCheck.sync()
         backdropCheck.sync()
+        scorecardCheck.sync()
+        heartbeatCheck.sync()
         SyncPositionEditBoxes()
         UIDropDownMenu_SetText(orientDropdown, TrueShot.GetOpt("orientation"))
         local fis = TrueShot.GetOpt("firstIconScale") or 1.3

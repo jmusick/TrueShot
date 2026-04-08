@@ -36,6 +36,17 @@ local Profile = {
     specID = 255,
     markerSpell = SPELLS.MoonlightChakram,
 
+    rotationalSpells = {
+        [1250646] = true, -- Takedown
+        [1261193] = true, -- Boomstick
+        [259495]  = true, -- Wildfire Bomb
+        [1264902] = true, -- Moonlight Chakram
+        [1251592] = true, -- Flamefang Pitch
+        [186270]  = true, -- Raptor Strike
+        [259489]  = true, -- Kill Command (SV)
+        [53351]   = true, -- Kill Shot
+    },
+
     state = {
         lastTakedownCast = 0,
         takedownUntil = 0,

@@ -30,6 +30,9 @@ local pendingQueueState = { count = 0 }
 local pendingQueueTicks = 0
 local allowImmediateQueueUpdate = false
 
+-- Committed metadata snapshot (persisted alongside displayedQueueState)
+local committedMeta = { source = "ac", reason = nil }
+
 ------------------------------------------------------------------------
 -- Container frame
 ------------------------------------------------------------------------
@@ -749,6 +752,133 @@ local function ResetAoeHintStabilization()
     aoeHintPendingTicks = 0
 end
 
+------------------------------------------------------------------------
+-- HeartbeatStrip: scrolling GCD rhythm visualization
+------------------------------------------------------------------------
+
+local HEARTBEAT_BAR_COUNT = 30
+local HEARTBEAT_TIME_WINDOW = 15
+local HEARTBEAT_BAR_WIDTH = 3
+local HEARTBEAT_BAR_HEIGHT_RATIO = 0.8
+local HEARTBEAT_FREEZE_DURATION = 5
+
+-- Parent to UIParent so heartbeat survives container:Hide() for post-combat freeze
+local heartbeatFrame = CreateFrame("Frame", nil, UIParent)
+heartbeatFrame:SetSize(200, 20)
+heartbeatFrame:SetPoint("TOPLEFT", container, "BOTTOMLEFT", 0, -4)
+heartbeatFrame:Hide()
+
+local heartbeatThrottle = 0
+
+local heartbeatBars = {}
+for i = 1, HEARTBEAT_BAR_COUNT do
+    local bar = heartbeatFrame:CreateTexture(nil, "ARTWORK")
+    bar:SetSize(HEARTBEAT_BAR_WIDTH, 16)
+    bar:SetColorTexture(1, 1, 1, 1)
+    bar:Hide()
+    heartbeatBars[i] = bar
+end
+
+local HEARTBEAT_COLORS = {
+    match      = { 0.2, 0.9, 0.3, 0.9 },
+    soft_match = { 0.3, 0.8, 0.9, 0.9 },
+    miss       = { 0.9, 0.8, 0.2, 0.9 },
+    unscored   = { 0.5, 0.5, 0.5, 0.35 },
+    gap        = { 0.9, 0.2, 0.2, 0.8 },
+}
+
+local heartbeatFrozenUntil = 0
+
+local function UpdateHeartbeatStrip()
+    if not TrueShot.GetOpt("showHeartbeat") then
+        heartbeatFrame:Hide()
+        return
+    end
+
+    -- Hide if overlay is explicitly disabled during combat (e.g. /ts hide)
+    -- but allow post-combat freeze to play out
+    if not displayEnabled and UnitAffectingCombat("player") then
+        heartbeatFrame:Hide()
+        heartbeatFrozenUntil = 0
+        return
+    end
+
+    local trace = TrueShot.CombatTrace
+    if not trace or trace:GetEventCount() == 0 then
+        heartbeatFrame:Hide()
+        return
+    end
+
+    local now = GetTime()
+
+    local inCombat = UnitAffectingCombat("player")
+    if not inCombat then
+        if heartbeatFrozenUntil == 0 then
+            heartbeatFrozenUntil = now + HEARTBEAT_FREEZE_DURATION
+        end
+        if now > heartbeatFrozenUntil then
+            heartbeatFrame:Hide()
+            heartbeatFrozenUntil = 0
+            return
+        end
+    else
+        heartbeatFrozenUntil = 0
+    end
+
+    local recentEvents = trace:GetRecentEvents(HEARTBEAT_BAR_COUNT)
+    local barHeight = math.max(12, (TrueShot.GetOpt("iconSize") or 40) * HEARTBEAT_BAR_HEIGHT_RATIO)
+
+    local stripWidth = HEARTBEAT_BAR_COUNT * (HEARTBEAT_BAR_WIDTH + 1)
+    heartbeatFrame:SetSize(stripWidth, barHeight)
+
+    heartbeatFrame:ClearAllPoints()
+    local orient = TrueShot.GetOpt("orientation") or "LEFT"
+    if orient == "UP" then
+        heartbeatFrame:SetPoint("TOP", container, "BOTTOM", 0, -4)
+    elseif orient == "DOWN" then
+        heartbeatFrame:SetPoint("BOTTOM", container, "TOP", 0, 4)
+    else
+        heartbeatFrame:SetPoint("TOPLEFT", container, "BOTTOMLEFT", 0, -4)
+    end
+
+    local referenceTime = inCombat and now or (heartbeatFrozenUntil - HEARTBEAT_FREEZE_DURATION)
+
+    for i = 1, HEARTBEAT_BAR_COUNT do
+        local bar = heartbeatBars[i]
+        local event = recentEvents[#recentEvents - i + 1]
+
+        if event and event.t > 0 then
+            local age = referenceTime - event.t
+            if age >= 0 and age <= HEARTBEAT_TIME_WINDOW then
+                local color = HEARTBEAT_COLORS[event.classification] or HEARTBEAT_COLORS.unscored
+                bar:SetVertexColor(color[1], color[2], color[3], color[4])
+                bar:SetSize(HEARTBEAT_BAR_WIDTH, barHeight)
+
+                local xPos = stripWidth - (age / HEARTBEAT_TIME_WINDOW) * stripWidth
+                bar:ClearAllPoints()
+                bar:SetPoint("BOTTOM", heartbeatFrame, "BOTTOMLEFT", xPos, 0)
+                bar:Show()
+            else
+                bar:Hide()
+            end
+        else
+            bar:Hide()
+        end
+    end
+
+    heartbeatFrame:Show()
+end
+
+-- Self-update for post-combat freeze (runs only when container is hidden but heartbeat visible)
+heartbeatFrame:SetScript("OnUpdate", function(_, elapsed)
+    heartbeatThrottle = heartbeatThrottle + elapsed
+    if heartbeatThrottle < 0.1 then return end
+    heartbeatThrottle = 0
+    if not container:IsShown() then
+        UpdateHeartbeatStrip()
+    end
+end)
+
 local ORIENTATION_CONFIG = {
     LEFT  = { anchor = "LEFT",   axis = "x", sign =  1 },
     RIGHT = { anchor = "RIGHT",  axis = "x", sign = -1 },
@@ -1244,6 +1374,10 @@ end
 function Display:RenderQueueNow(queue)
     self:UpdateQueue(queue)
     StoreQueue(displayedQueueState, queue, TrueShot.GetOpt("iconCount"))
+    -- Snapshot committed metadata for analytics
+    local meta = Engine.lastQueueMeta
+    committedMeta.source = meta.source
+    committedMeta.reason = meta.reason
     ClearPendingQueue()
     allowImmediateQueueUpdate = false
 end
@@ -1298,6 +1432,28 @@ function Display:ConsumeQueueUpdate(queue, inCombat)
 end
 
 function Display:OnSpellCastSucceeded(spellID)
+    -- Record cast for analytics BEFORE queue recompute
+    -- icons[1].spellID is the committed, stabilized recommendation the player saw
+    if TrueShot.CombatTrace and UnitAffectingCombat("player") then
+        local displayedSpell = icons[1] and icons[1].spellID or 0
+        -- Build dense queue (no holes) for reliable soft-match iteration
+        local displayedQueue = {}
+        local count = TrueShot.GetOpt("iconCount")
+        for i = 1, count do
+            if icons[i] and icons[i].spellID then
+                displayedQueue[#displayedQueue + 1] = icons[i].spellID
+            end
+        end
+        -- Use committedMeta (snapshotted at RenderQueueNow) not Engine.lastQueueMeta
+        TrueShot.CombatTrace:RecordCast(
+            spellID,
+            displayedSpell,
+            committedMeta.source or "ac",
+            committedMeta.reason,
+            displayedQueue
+        )
+    end
+
     if TrueShot.GetOpt("showCastFeedback") then
         local now = GetTime()
         for _, icon in ipairs(icons) do
@@ -1347,6 +1503,7 @@ local function OnUpdateHandler(_, elapsed)
 
     local queue = Engine:ComputeQueue(TrueShot.GetOpt("iconCount"))
     Display:ConsumeQueueUpdate(queue, inCombat)
+    UpdateHeartbeatStrip()
 end
 
 local displayEnabled = false
@@ -1369,6 +1526,8 @@ function Display:Disable()
     self:ResetQueueStabilization()
     ResetStoredQueue(displayedQueueState)
     container:SetScript("OnUpdate", nil)
+    -- Don't hide heartbeatFrame here -- let UpdateHeartbeatStrip manage its
+    -- own freeze/hide lifecycle for post-combat mini-replay
     container:Hide()
     if aoeHintIcon then aoeHintIcon:Hide() end
 end

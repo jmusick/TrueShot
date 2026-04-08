@@ -23,6 +23,16 @@ local Profile = {
         lastWildThrashCast = 0,
     },
 
+    rotationalSpells = {
+        [34026]   = true, -- Kill Command
+        [19574]   = true, -- Bestial Wrath
+        [1264359] = true, -- Wild Thrash
+        [56641]   = true, -- Steady Shot
+        [217200]  = true, -- Barbed Shot
+        [120360]  = true, -- Barrage
+        [53351]   = true, -- Kill Shot
+    },
+
     -- AoE hint: show Wild Thrash in secondary icon when 2+ hostile nameplates visible
     aoeHint = {
         spellID = 1264359, -- Wild Thrash

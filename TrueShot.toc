@@ -35,3 +35,5 @@ Core.lua
 Display.lua
 SettingsPanel.lua
 SignalProbe.lua
+CombatTrace.lua
+Scorecard.lua

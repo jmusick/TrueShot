@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.17.0 - 2026-04-08
+
+### Added
+- **Rotation Scorecard**: Post-combat alignment report showing how well your casts matched TrueShot's recommendations. Measures recommendation adherence with match/soft-match/miss classification. Gated to fights longer than 8 seconds with 5+ scored casts.
+- **GCD Heartbeat**: Real-time scrolling rhythm strip below the queue overlay. Each cast appears as a colored bar: green (matched), cyan (soft match), yellow (miss), red (GCD gap), gray (utility/unscored). Freezes briefly after combat as a mini-replay.
+- `/ts score` command to view recent fight alignment history.
+- `rotationalSpells` tables on all Hunter profiles for accurate cast classification.
+
 ## v0.16.3 - 2026-04-07
 
 ### Added

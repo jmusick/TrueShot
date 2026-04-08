@@ -44,6 +44,16 @@ local Profile = {
         lastBoomstickCast = 0,
     },
 
+    rotationalSpells = {
+        [259489]  = true, -- Kill Command (SV)
+        [259495]  = true, -- Wildfire Bomb
+        [1250646] = true, -- Takedown
+        [1261193] = true, -- Boomstick
+        [1251592] = true, -- Flamefang Pitch
+        [186270]  = true, -- Raptor Strike
+        [53351]   = true, -- Kill Shot
+    },
+
     rules = {
         -- Filter utility spells
         { type = "BLACKLIST", spellID = SPELLS.Harpoon },
