@@ -3,7 +3,6 @@
 TrueShot = TrueShot or {}
 
 local settingsCategory
-local subCategories = {}
 
 local function OpenRegisteredCategory()
     if not settingsCategory or not Settings or not Settings.OpenToCategory then return end
@@ -718,8 +717,7 @@ local function RegisterSettingsPanel()
 
     for _, tab in ipairs(tabs) do
         local panel = tab.factory()
-        local sub = Settings.RegisterCanvasLayoutSubcategory(settingsCategory, panel, tab.name)
-        subCategories[tab.name] = sub
+        Settings.RegisterCanvasLayoutSubcategory(settingsCategory, panel, tab.name)
     end
 end
 

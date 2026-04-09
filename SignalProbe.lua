@@ -310,11 +310,6 @@ end
 -- Probe: aura read (validate actual aura data retrieval)
 ------------------------------------------------------------------------
 
-local AURA_TEST_SPELLS = {
-    { id = 272790, names = { "Frenzy", "Raserei" }, note = "Barbed Shot stacks" },
-    { id = 118455, names = { "Beast Cleave", "Bestiale Spaltung" }, note = "AoE buff" },
-    { id = 19574,  names = { "Bestial Wrath", "Zorn des Wildtiers" }, note = "Burst buff" },
-}
 
 function Probe:AuraRead()
     PrintHeader("aura read (all player buffs)")

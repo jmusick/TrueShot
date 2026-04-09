@@ -25,9 +25,6 @@ function CustomProfile.RegisterConditionSchema(source, schemas)
     end
 end
 
-function CustomProfile.GetConditionSchema(conditionId)
-    return _conditionSchemas[conditionId]
-end
 
 function CustomProfile.GetAllConditionSchemas()
     return _conditionSchemas
@@ -132,23 +129,6 @@ function CustomProfile.SaveCustomData(profileId, data)
     end
 end
 
-function CustomProfile.DeleteCustomData(profileId)
-    if not TrueShotDB.customProfiles then return end
-    EnsureLibraryFormat(profileId)
-    local library = TrueShotDB.customProfiles[profileId]
-    if library and library.profiles then
-        local idx = library.activeIndex or 1
-        table.remove(library.profiles, idx)
-        if #library.profiles == 0 then
-            TrueShotDB.customProfiles[profileId] = nil
-        else
-            library.activeIndex = math.min(idx, #library.profiles)
-        end
-    else
-        TrueShotDB.customProfiles[profileId] = nil
-    end
-    CustomProfile.ClearCustomConditions(profileId)
-end
 
 function CustomProfile.ClearCustomConditions(profileId)
     local source = profileId .. "_custom"
@@ -217,12 +197,6 @@ function CustomProfile.DeleteFromLibrary(profileId, index)
     return true
 end
 
-function CustomProfile.RenameInLibrary(profileId, index, newName)
-    local library = CustomProfile.GetProfileLibrary(profileId)
-    if not library or not library.profiles or not library.profiles[index] then return false end
-    library.profiles[index].name = newName
-    return true
-end
 
 function CustomProfile.GetLibraryCount(profileId)
     local library = CustomProfile.GetProfileLibrary(profileId)

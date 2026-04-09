@@ -748,11 +748,6 @@ local function UpdateAoeHintIcon(spellID)
     end
 end
 
-local function ResetAoeHintStabilization()
-    aoeHintPending = nil
-    aoeHintPendingTicks = 0
-end
-
 ------------------------------------------------------------------------
 -- HeartbeatStrip: scrolling GCD rhythm visualization
 ------------------------------------------------------------------------
