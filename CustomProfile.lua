@@ -238,28 +238,31 @@ function CustomProfile.Compile(baseProfile, customData)
         local now = GetTime()
         for _, trigger in ipairs(self._customTriggers) do
             if trigger.spellID == spellID then
+                -- Guard check: skip this trigger if guard condition fails
+                local guardPassed = true
                 if trigger.guard then
                     local Engine = TrueShot.Engine
                     if not Engine:EvalCondition(trigger.guard) then
-                        goto continue
+                        guardPassed = false
                     end
                 end
-                local varName = trigger.varName
-                if trigger.setNow then
-                    self.state[varName] = now
-                else
-                    self.state[varName] = trigger.value
+                if guardPassed then
+                    local varName = trigger.varName
+                    if trigger.setNow then
+                        self.state[varName] = now
+                    else
+                        self.state[varName] = trigger.value
+                    end
+                    if trigger.resetAfter then
+                        self.state["_resetTime_" .. varName] = now
+                        self.state["_resetAfter_" .. varName] = trigger.resetAfter
+                        self.state["_resetValue_" .. varName] = trigger.resetValue
+                    else
+                        self.state["_resetTime_" .. varName] = nil
+                        self.state["_resetAfter_" .. varName] = nil
+                        self.state["_resetValue_" .. varName] = nil
+                    end
                 end
-                if trigger.resetAfter then
-                    self.state["_resetTime_" .. varName] = now
-                    self.state["_resetAfter_" .. varName] = trigger.resetAfter
-                    self.state["_resetValue_" .. varName] = trigger.resetValue
-                else
-                    self.state["_resetTime_" .. varName] = nil
-                    self.state["_resetAfter_" .. varName] = nil
-                    self.state["_resetValue_" .. varName] = nil
-                end
-                ::continue::
             end
         end
         if self._baseProfile.OnSpellCast then
