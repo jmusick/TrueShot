@@ -780,10 +780,10 @@ function RuleBuilder:DeleteStateVar(index)
         for _, rule in ipairs(_editingData.rules or {}) do
             rule.condition = RemoveConditionType(rule.condition, varName)
         end
-        -- Remove guard references in remaining triggers
+        -- Remove guard references in remaining triggers (recursive cleanup)
         for _, trig in ipairs(_editingData.triggers or {}) do
-            if trig.guard and trig.guard.type == varName then
-                trig.guard = nil
+            if trig.guard then
+                trig.guard = RemoveConditionType(trig.guard, varName)
             end
         end
     end
