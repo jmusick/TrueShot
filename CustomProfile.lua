@@ -104,6 +104,17 @@ function CustomProfile.DeleteCustomData(profileId)
     if TrueShotDB.customProfiles then
         TrueShotDB.customProfiles[profileId] = nil
     end
+    -- Clear custom condition schemas for this profile
+    CustomProfile.ClearCustomConditions(profileId)
+end
+
+function CustomProfile.ClearCustomConditions(profileId)
+    local source = profileId .. "_custom"
+    for id, schema in pairs(_conditionSchemas) do
+        if schema.source == source then
+            _conditionSchemas[id] = nil
+        end
+    end
 end
 
 ------------------------------------------------------------------------
@@ -345,6 +356,7 @@ function CustomProfile.WrapActivation()
         local customData = CustomProfile.GetCustomData(baseProfile.id)
         if not customData then
             _wrapperCache[baseProfile.id] = nil
+            CustomProfile.ClearCustomConditions(baseProfile.id)
             return result
         end
 
