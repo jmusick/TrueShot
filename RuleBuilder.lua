@@ -195,12 +195,41 @@ local function CreateMainFrame()
     divider:SetPoint("TOPLEFT", f, "TOPLEFT", 8, -34)
     divider:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, -34)
     divider:SetColorTexture(0.3, 0.3, 0.3, 1)
+    f._divider = divider
+
+    -- Profile library selector (hidden by default, shown when 2+ profiles exist)
+    local libSelector = CreateFrame("Frame", nil, f)
+    libSelector:SetHeight(26)
+    libSelector:SetPoint("TOPLEFT", f, "TOPLEFT", 8, -35)
+    libSelector:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, -35)
+    libSelector:Hide()
+    f._libSelector = libSelector
+
+    local libLabel = libSelector:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    libLabel:SetPoint("LEFT", libSelector, "LEFT", 4, 0)
+    libLabel:SetText("Active:")
+    f._libLabel = libLabel
+
+    local libDropdown = CreateFrame("Frame", "TrueShotRBLibDD", libSelector, "UIDropDownMenuTemplate")
+    libDropdown:SetPoint("LEFT", libLabel, "RIGHT", -8, -2)
+    UIDropDownMenu_SetWidth(libDropdown, 180)
+    f._libDropdown = libDropdown
+
+    local libDelBtn = CreateFrame("Button", nil, libSelector, "UIPanelButtonTemplate")
+    libDelBtn:SetSize(60, 20)
+    libDelBtn:SetPoint("RIGHT", libSelector, "RIGHT", -4, 0)
+    libDelBtn:SetText("Delete")
+    libDelBtn:SetScript("OnClick", function()
+        RuleBuilder:OnDeleteLibraryEntry()
+    end)
+    f._libDelBtn = libDelBtn
 
     -- Left panel (rule list)
     local leftPanel = CreateFrame("Frame", nil, f)
     leftPanel:SetPoint("TOPLEFT", f, "TOPLEFT", 8, -38)
     leftPanel:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 8, 44)
     leftPanel:SetWidth(LEFT_PANEL_WIDTH)
+    f._leftPanel = leftPanel
 
     local leftScroll = CreateFrame("ScrollFrame", "TrueShotRBLeftScroll", leftPanel, "UIPanelScrollFrameTemplate")
     leftScroll:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 0, 0)
@@ -641,6 +670,47 @@ function RuleBuilder:Open()
 
     _selectedIndex = nil
     _selectedVarIndex = nil
+
+    -- Profile library selector
+    local libraryCount = CustomProfile.GetLibraryCount and CustomProfile.GetLibraryCount(profileId) or 0
+    if _isCustomized and libraryCount > 1 then
+        _mainFrame._libSelector:Show()
+        -- Shift divider and left panel down to make room
+        _mainFrame._divider:ClearAllPoints()
+        _mainFrame._divider:SetPoint("TOPLEFT", _mainFrame, "TOPLEFT", 8, -60)
+        _mainFrame._divider:SetPoint("TOPRIGHT", _mainFrame, "TOPRIGHT", -8, -60)
+        _mainFrame._leftPanel:ClearAllPoints()
+        _mainFrame._leftPanel:SetPoint("TOPLEFT", _mainFrame, "TOPLEFT", 8, -64)
+        _mainFrame._leftPanel:SetPoint("BOTTOMLEFT", _mainFrame, "BOTTOMLEFT", 8, 44)
+
+        local activeIdx = CustomProfile.GetActiveIndex(profileId)
+        local library = CustomProfile.GetProfileLibrary(profileId)
+        UIDropDownMenu_Initialize(_mainFrame._libDropdown, function()
+            for i, entry in ipairs(library.profiles) do
+                local info = UIDropDownMenu_CreateInfo()
+                info.text = entry.name or ("Profile " .. i)
+                info.checked = (i == activeIdx)
+                info.func = function()
+                    CustomProfile.SetActiveIndex(profileId, i)
+                    TrueShot.Engine:ActivateProfile(baseProfile.specID)
+                    RuleBuilder:Open()
+                end
+                UIDropDownMenu_AddButton(info)
+            end
+        end)
+        local activeName = library.profiles[activeIdx] and library.profiles[activeIdx].name or "Custom"
+        UIDropDownMenu_SetText(_mainFrame._libDropdown, activeName)
+    else
+        _mainFrame._libSelector:Hide()
+        -- Restore normal divider and left panel positions
+        _mainFrame._divider:ClearAllPoints()
+        _mainFrame._divider:SetPoint("TOPLEFT", _mainFrame, "TOPLEFT", 8, -34)
+        _mainFrame._divider:SetPoint("TOPRIGHT", _mainFrame, "TOPRIGHT", -8, -34)
+        _mainFrame._leftPanel:ClearAllPoints()
+        _mainFrame._leftPanel:SetPoint("TOPLEFT", _mainFrame, "TOPLEFT", 8, -38)
+        _mainFrame._leftPanel:SetPoint("BOTTOMLEFT", _mainFrame, "BOTTOMLEFT", 8, 44)
+    end
+
     self:RefreshRuleList()
     self:UpdateButtonStates()
     self:ClearRightPanel()
@@ -788,6 +858,19 @@ function RuleBuilder:OnReset()
     -- Refresh UI
     self:Open()
     print("|cff00ff00[TS]|r Reset to built-in profile.")
+end
+
+function RuleBuilder:OnDeleteLibraryEntry()
+    local Engine = TrueShot.Engine
+    local profile = Engine and Engine.activeProfile
+    if not profile then return end
+    local baseProfile = profile._baseProfile or profile
+    local profileId = baseProfile.id
+    local activeIdx = CustomProfile.GetActiveIndex(profileId)
+    CustomProfile.DeleteFromLibrary(profileId, activeIdx)
+    CustomProfile.InvalidateWrapper(profileId)
+    Engine:ActivateProfile(baseProfile.specID)
+    self:Open()
 end
 
 function RuleBuilder:SelectRule(index)
