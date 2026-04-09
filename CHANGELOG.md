@@ -1,5 +1,28 @@
 # Changelog
 
+## v0.20.0 - 2026-04-09
+
+### Added
+- **Profile Import/Export** (`/ts export`, `/ts import`): Share custom profiles as copy-paste strings
+  - Zero external dependencies (custom serializer + Base64 codec)
+  - 4-phase validation: format, schema, semantic, warnings
+  - Preview before import with validation results
+  - Strict security: no code execution, whitelist-based parsing
+  - Export/Import buttons in the Rule Builder
+  - Profiles are tied to their target spec and only activate on the matching character
+- **Profile Library**: Multiple custom profiles per spec with instant switching
+  - Import adds to library instead of overwriting
+  - Profile selector dropdown in Rule Builder when 2+ profiles exist
+  - Delete individual profiles from the library
+  - Auto-migration from previous single-profile storage format
+- **Profile Browser** (`/ts profiles`): Hierarchical view of all registered profiles
+  - Collapsible tree: Class > Spec > Hero Talent
+  - Shows all profiles across all classes, not just the current spec
+  - View button opens the Rule Builder for the selected profile
+  - Export button for profiles with custom data
+  - Active/customized/variant indicators per profile
+  - Accessible from Rule Builder ("Browse All" button) or slash command
+
 ## v0.19.0 - 2026-04-09
 
 ### Added

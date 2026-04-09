@@ -64,6 +64,8 @@ local _selectedIndex = nil
 local _selectedVarIndex = nil  -- index into stateVarDefs, or nil
 local _editingData = nil  -- the custom data being edited
 local _isCustomized = false
+local _isReadOnly = false
+local _viewedProfileId = nil  -- profile ID for read-only views
 local _editorFrames = {}  -- tracked frames for editor cleanup
 local RenderConditionTree  -- forward declaration for recursive rendering
 
@@ -136,6 +138,9 @@ local function GetRotationalSpellList()
 end
 
 local function GetProfileId()
+    if _isReadOnly and _viewedProfileId then
+        return _viewedProfileId
+    end
     local Engine = TrueShot.Engine
     local profile = Engine and Engine.activeProfile
     if not profile then return nil end
@@ -195,12 +200,41 @@ local function CreateMainFrame()
     divider:SetPoint("TOPLEFT", f, "TOPLEFT", 8, -34)
     divider:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, -34)
     divider:SetColorTexture(0.3, 0.3, 0.3, 1)
+    f._divider = divider
+
+    -- Profile selector (always visible: built-in + custom entries)
+    local libSelector = CreateFrame("Frame", nil, f)
+    libSelector:SetHeight(26)
+    libSelector:SetPoint("TOPLEFT", f, "TOPLEFT", 8, -35)
+    libSelector:SetPoint("TOPRIGHT", f, "TOPRIGHT", -8, -35)
+    libSelector:Hide()
+    f._libSelector = libSelector
+
+    local libLabel = libSelector:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    libLabel:SetPoint("LEFT", libSelector, "LEFT", 4, 0)
+    libLabel:SetText("Profile:")
+    f._libLabel = libLabel
+
+    local libDropdown = CreateFrame("Frame", "TrueShotRBLibDD", libSelector, "UIDropDownMenuTemplate")
+    libDropdown:SetPoint("LEFT", libLabel, "RIGHT", -8, -2)
+    UIDropDownMenu_SetWidth(libDropdown, 180)
+    f._libDropdown = libDropdown
+
+    local libDelBtn = CreateFrame("Button", nil, libSelector, "UIPanelButtonTemplate")
+    libDelBtn:SetSize(60, 20)
+    libDelBtn:SetPoint("RIGHT", libSelector, "RIGHT", -4, 0)
+    libDelBtn:SetText("Delete")
+    libDelBtn:SetScript("OnClick", function()
+        RuleBuilder:OnDeleteLibraryEntry()
+    end)
+    f._libDelBtn = libDelBtn
 
     -- Left panel (rule list)
     local leftPanel = CreateFrame("Frame", nil, f)
     leftPanel:SetPoint("TOPLEFT", f, "TOPLEFT", 8, -38)
     leftPanel:SetPoint("BOTTOMLEFT", f, "BOTTOMLEFT", 8, 44)
     leftPanel:SetWidth(LEFT_PANEL_WIDTH)
+    f._leftPanel = leftPanel
 
     local leftScroll = CreateFrame("ScrollFrame", "TrueShotRBLeftScroll", leftPanel, "UIPanelScrollFrameTemplate")
     leftScroll:SetPoint("TOPLEFT", leftPanel, "TOPLEFT", 0, 0)
@@ -281,6 +315,39 @@ local function CreateMainFrame()
         RuleBuilder:OnAddStateVar()
     end)
     f._addVarBtn = addVarBtn
+
+    local exportBtn = CreateFrame("Button", nil, bottomBar, "UIPanelButtonTemplate")
+    exportBtn:SetSize(70, 22)
+    exportBtn:SetPoint("RIGHT", resetBtn, "LEFT", -6, 0)
+    exportBtn:SetText("Export")
+    exportBtn:SetScript("OnClick", function()
+        if TrueShot.ProfileIO and TrueShot.ProfileIO.ShowExport then
+            TrueShot.ProfileIO:ShowExport()
+        end
+    end)
+    f._exportBtn = exportBtn
+
+    local importBtn = CreateFrame("Button", nil, bottomBar, "UIPanelButtonTemplate")
+    importBtn:SetSize(70, 22)
+    importBtn:SetPoint("RIGHT", exportBtn, "LEFT", -6, 0)
+    importBtn:SetText("Import")
+    importBtn:SetScript("OnClick", function()
+        if TrueShot.ProfileIO and TrueShot.ProfileIO.ShowImport then
+            TrueShot.ProfileIO:ShowImport()
+        end
+    end)
+    f._importBtn = importBtn
+
+    local browseBtn = CreateFrame("Button", nil, bottomBar, "UIPanelButtonTemplate")
+    browseBtn:SetSize(80, 22)
+    browseBtn:SetPoint("RIGHT", importBtn, "LEFT", -6, 0)
+    browseBtn:SetText("Browse All")
+    browseBtn:SetScript("OnClick", function()
+        if TrueShot.ProfileIO and TrueShot.ProfileIO.ShowBrowser then
+            TrueShot.ProfileIO:ShowBrowser()
+        end
+    end)
+    f._browseBtn = browseBtn
 
     f:Hide()
     return f
@@ -497,7 +564,7 @@ function RuleBuilder:RefreshRuleList()
                 row._selected:Hide()
             end
 
-            if _isCustomized then
+            if _isCustomized and not _isReadOnly then
                 row._upBtn:SetShown(i > 1)
                 row._downBtn:SetShown(i < #rules)
                 row._delBtn:Show()
@@ -547,7 +614,7 @@ function RuleBuilder:RefreshRuleList()
                 row._selected:Hide()
             end
 
-            if _isCustomized then
+            if _isCustomized and not _isReadOnly then
                 row._delBtn:Show()
             else
                 row._delBtn:Hide()
@@ -600,6 +667,8 @@ function RuleBuilder:Open()
 
     -- Update title
     _mainFrame._profileLabel:SetText("|cffaaaaaa" .. (baseProfile.displayName or profileId) .. "|r")
+    _isReadOnly = false
+    _viewedProfileId = nil
 
     -- Load existing custom data or show built-in rules read-only
     local customData = CustomProfile.GetCustomData(profileId)
@@ -619,6 +688,120 @@ function RuleBuilder:Open()
 
     _selectedIndex = nil
     _selectedVarIndex = nil
+
+    -- Always-visible profile selector (built-in + custom entries)
+    _mainFrame._libSelector:Show()
+    _mainFrame._divider:ClearAllPoints()
+    _mainFrame._divider:SetPoint("TOPLEFT", _mainFrame, "TOPLEFT", 8, -60)
+    _mainFrame._divider:SetPoint("TOPRIGHT", _mainFrame, "TOPRIGHT", -8, -60)
+    _mainFrame._leftPanel:ClearAllPoints()
+    _mainFrame._leftPanel:SetPoint("TOPLEFT", _mainFrame, "TOPLEFT", 8, -64)
+    _mainFrame._leftPanel:SetPoint("BOTTOMLEFT", _mainFrame, "BOTTOMLEFT", 8, 44)
+
+    local library = CustomProfile.GetProfileLibrary(profileId)
+    local activeIdx = library and CustomProfile.GetActiveIndex(profileId) or nil
+
+    UIDropDownMenu_Initialize(_mainFrame._libDropdown, function()
+        -- Built-in option (always first)
+        local info = UIDropDownMenu_CreateInfo()
+        info.text = "Built-in: " .. (baseProfile.displayName or profileId)
+        info.checked = (not _isCustomized)
+        info.func = function()
+            _isCustomized = false
+            _editingData = {
+                rules = baseProfile.rules or {},
+                stateVarDefs = {},
+                triggers = {},
+                rotationalSpells = baseProfile.rotationalSpells or {},
+            }
+            -- Tell the engine to use built-in (activeIndex 0 = none active)
+            if library then
+                CustomProfile.SetActiveIndex(profileId, 0)
+            end
+            CustomProfile.InvalidateWrapper(profileId)
+            TrueShot.Engine:ActivateProfile(baseProfile.specID)
+            RuleBuilder:Open()
+        end
+        UIDropDownMenu_AddButton(info)
+
+        -- Custom library entries
+        if library and library.profiles then
+            for i, entry in ipairs(library.profiles) do
+                local cinfo = UIDropDownMenu_CreateInfo()
+                cinfo.text = entry.name or ("Custom " .. i)
+                cinfo.checked = (_isCustomized and activeIdx == i)
+                cinfo.func = function()
+                    CustomProfile.SetActiveIndex(profileId, i)
+                    TrueShot.Engine:ActivateProfile(baseProfile.specID)
+                    RuleBuilder:Open()
+                end
+                UIDropDownMenu_AddButton(cinfo)
+            end
+        end
+    end)
+
+    -- Set dropdown text
+    if _isCustomized and library and library.profiles and activeIdx and activeIdx > 0 then
+        local activeName = library.profiles[activeIdx] and library.profiles[activeIdx].name or "Custom"
+        UIDropDownMenu_SetText(_mainFrame._libDropdown, activeName)
+    else
+        UIDropDownMenu_SetText(_mainFrame._libDropdown, "Built-in: " .. (baseProfile.displayName or profileId))
+    end
+
+    -- Only show Delete button when viewing a custom entry with 2+ entries
+    local libraryCount = library and library.profiles and #library.profiles or 0
+    _mainFrame._libDelBtn:SetShown(_isCustomized and libraryCount > 1)
+
+    self:RefreshRuleList()
+    self:UpdateButtonStates()
+    self:ClearRightPanel()
+    _mainFrame:Show()
+end
+
+-- Read-only view for cross-spec profiles from the Profile Browser
+function RuleBuilder:OpenReadOnly(profile)
+    if not _mainFrame then
+        _mainFrame = CreateMainFrame()
+    end
+
+    local profileId = profile.id
+
+    _mainFrame._profileLabel:SetText("|cffaaaaaa" .. (profile.displayName or profileId) .. " (read-only)|r")
+
+    -- Load custom data if available, otherwise built-in rules
+    local customData = CustomProfile.GetCustomData(profileId)
+    if customData then
+        _editingData = DeepCopy(customData)
+        _isCustomized = true
+    else
+        _editingData = {
+            rules = DeepCopy(profile.rules or {}),
+            stateVarDefs = {},
+            triggers = {},
+            rotationalSpells = DeepCopy(profile.rotationalSpells or {}),
+        }
+        _isCustomized = false
+    end
+    _isReadOnly = true
+    _viewedProfileId = profileId
+
+    -- Register custom state var conditions for the viewed profile
+    if _editingData.stateVarDefs then
+        CustomProfile.RegisterCustomConditions(profileId, _editingData.stateVarDefs)
+    end
+
+    _selectedIndex = nil
+    _selectedVarIndex = nil
+
+    -- Hide library selector for read-only
+    _mainFrame._libSelector:Hide()
+    _mainFrame._divider:ClearAllPoints()
+    _mainFrame._divider:SetPoint("TOPLEFT", _mainFrame, "TOPLEFT", 8, -34)
+    _mainFrame._divider:SetPoint("TOPRIGHT", _mainFrame, "TOPRIGHT", -8, -34)
+    _mainFrame._leftPanel:ClearAllPoints()
+    _mainFrame._leftPanel:SetPoint("TOPLEFT", _mainFrame, "TOPLEFT", 8, -38)
+    _mainFrame._leftPanel:SetPoint("BOTTOMLEFT", _mainFrame, "BOTTOMLEFT", 8, 44)
+
     self:RefreshRuleList()
     self:UpdateButtonStates()
     self:ClearRightPanel()
@@ -627,11 +810,25 @@ end
 
 function RuleBuilder:UpdateButtonStates()
     if not _mainFrame then return end
+    if _isReadOnly then
+        _mainFrame._customizeBtn:Hide()
+        _mainFrame._applyBtn:Hide()
+        _mainFrame._resetBtn:Hide()
+        _mainFrame._addRuleBtn:Hide()
+        _mainFrame._addVarBtn:Hide()
+        if _mainFrame._exportBtn then _mainFrame._exportBtn:Hide() end
+        if _mainFrame._importBtn then _mainFrame._importBtn:Hide() end
+        if _mainFrame._browseBtn then _mainFrame._browseBtn:Hide() end
+        return
+    end
     _mainFrame._customizeBtn:SetShown(not _isCustomized)
     _mainFrame._applyBtn:SetShown(_isCustomized)
     _mainFrame._resetBtn:SetShown(_isCustomized)
     _mainFrame._addRuleBtn:SetShown(_isCustomized)
     _mainFrame._addVarBtn:SetShown(_isCustomized)
+    if _mainFrame._exportBtn then _mainFrame._exportBtn:SetShown(_isCustomized) end
+    if _mainFrame._importBtn then _mainFrame._importBtn:Show() end
+    if _mainFrame._browseBtn then _mainFrame._browseBtn:Show() end
 end
 
 ------------------------------------------------------------------------
@@ -652,6 +849,42 @@ local function TrackFrame(frame)
 end
 
 local _hintText = nil  -- reusable hint FontString
+
+-- Recursively disable all interactive controls in a frame tree (read-only mode)
+-- For ScrollFrames: recurse into the scroll child (editor content) but skip
+-- the scrollbar children to preserve scroll functionality
+local function DisableFrameTree(frame)
+    if not frame then return end
+    if frame:IsObjectType("ScrollFrame") then
+        -- Only recurse into the scroll child, not the scrollbar
+        local scrollChild = frame:GetScrollChild()
+        if scrollChild then DisableFrameTree(scrollChild) end
+        return
+    end
+    local objType = frame:IsObjectType("Button") and "Button"
+        or frame:IsObjectType("EditBox") and "EditBox"
+        or nil
+    if objType == "Button" and frame.Disable then
+        frame:Disable()
+    elseif objType == "EditBox" and frame.SetEnabled then
+        frame:SetEnabled(false)
+    end
+    -- Disable UIDropDownMenu button children (named *Button)
+    local name = frame:GetName()
+    if name then
+        local ddBtn = _G[name .. "Button"]
+        if ddBtn and ddBtn.Disable then ddBtn:Disable() end
+    end
+    for i = 1, frame:GetNumChildren() do
+        DisableFrameTree(select(i, frame:GetChildren()))
+    end
+end
+
+local function DisableEditorControls()
+    for _, frame in ipairs(_editorFrames) do
+        DisableFrameTree(frame)
+    end
+end
 
 function RuleBuilder:ClearRightPanel()
     -- Clear all children of the right panel
@@ -688,6 +921,7 @@ end
 ------------------------------------------------------------------------
 
 function RuleBuilder:OnCustomize()
+    if _isReadOnly then return end
     local Engine = TrueShot.Engine
     local profile = Engine and Engine.activeProfile
     if not profile then return end
@@ -705,6 +939,7 @@ function RuleBuilder:OnCustomize()
 end
 
 function RuleBuilder:OnApply()
+    if _isReadOnly then return end
     if not _editingData or not _isCustomized then return end
 
     local Engine = TrueShot.Engine
@@ -750,12 +985,17 @@ function RuleBuilder:OnApply()
 end
 
 function RuleBuilder:OnReset()
+    if _isReadOnly then return end
     local Engine = TrueShot.Engine
     local profile = Engine and Engine.activeProfile
     if not profile then return end
 
     local baseProfile = profile._baseProfile or profile
-    CustomProfile.DeleteCustomData(baseProfile.id)
+    -- Delete entire library (not just active entry)
+    if TrueShotDB.customProfiles then
+        TrueShotDB.customProfiles[baseProfile.id] = nil
+    end
+    CustomProfile.ClearCustomConditions(baseProfile.id)
     CustomProfile.InvalidateWrapper(baseProfile.id)
 
     -- Re-activate to revert to built-in
@@ -764,6 +1004,20 @@ function RuleBuilder:OnReset()
     -- Refresh UI
     self:Open()
     print("|cff00ff00[TS]|r Reset to built-in profile.")
+end
+
+function RuleBuilder:OnDeleteLibraryEntry()
+    if _isReadOnly then return end
+    local Engine = TrueShot.Engine
+    local profile = Engine and Engine.activeProfile
+    if not profile then return end
+    local baseProfile = profile._baseProfile or profile
+    local profileId = baseProfile.id
+    local activeIdx = CustomProfile.GetActiveIndex(profileId)
+    CustomProfile.DeleteFromLibrary(profileId, activeIdx)
+    CustomProfile.InvalidateWrapper(profileId)
+    Engine:ActivateProfile(baseProfile.specID)
+    self:Open()
 end
 
 function RuleBuilder:SelectRule(index)
@@ -781,6 +1035,7 @@ function RuleBuilder:SelectStateVar(index)
 end
 
 function RuleBuilder:DeleteStateVar(index)
+    if _isReadOnly then return end
     if not _editingData or not _isCustomized then return end
     -- Capture varName before removing the def
     local varName = (_editingData.stateVarDefs[index] or {}).name
@@ -814,6 +1069,7 @@ function RuleBuilder:DeleteStateVar(index)
 end
 
 function RuleBuilder:MoveRule(index, direction)
+    if _isReadOnly then return end
     if not _editingData or not _isCustomized then return end
     local rules = _editingData.rules
     local newIndex = index + direction
@@ -831,6 +1087,7 @@ function RuleBuilder:MoveRule(index, direction)
 end
 
 function RuleBuilder:DeleteRule(index)
+    if _isReadOnly then return end
     if not _editingData or not _isCustomized then return end
     table.remove(_editingData.rules, index)
     if _selectedIndex == index then
@@ -843,6 +1100,7 @@ function RuleBuilder:DeleteRule(index)
 end
 
 function RuleBuilder:OnAddRule()
+    if _isReadOnly then return end
     if not _editingData or not _isCustomized then return end
     local newRule = {
         type = "PIN",
@@ -857,6 +1115,7 @@ function RuleBuilder:OnAddRule()
 end
 
 function RuleBuilder:OnAddStateVar()
+    if _isReadOnly then return end
     if not _editingData or not _isCustomized then return end
     local newVar = {
         name    = "var" .. (#_editingData.stateVarDefs + 1),
@@ -1341,7 +1600,7 @@ function RuleBuilder:ShowRuleEditor(index)
     self:ClearRightPanel()
     ClearEditorFrames()
 
-    if not _rightPanel or not _editingData or not _isCustomized then return end
+    if not _rightPanel or not _editingData or (not _isCustomized and not _isReadOnly) then return end
     local rules = _editingData.rules
     local rule = rules and rules[index]
     if not rule then return end
@@ -1560,6 +1819,8 @@ function RuleBuilder:ShowRuleEditor(index)
             scrollChild:SetHeight(math.max(top - bottom + 40, 200))
         end
     end)
+
+    if _isReadOnly then DisableEditorControls() end
 end
 
 ------------------------------------------------------------------------
@@ -1570,7 +1831,7 @@ function RuleBuilder:ShowStateVarEditor(varIndex)
     self:ClearRightPanel()
     ClearEditorFrames()
 
-    if not _rightPanel or not _editingData or not _isCustomized then return end
+    if not _rightPanel or not _editingData or (not _isCustomized and not _isReadOnly) then return end
     local defs = _editingData.stateVarDefs
     local def = defs and defs[varIndex]
     if not def then return end
@@ -1863,6 +2124,8 @@ function RuleBuilder:ShowStateVarEditor(varIndex)
             scrollChild:SetHeight(math.max(top - bottom + 30, 300))
         end
     end)
+
+    if _isReadOnly then DisableEditorControls() end
 end
 
 ------------------------------------------------------------------------
@@ -1873,7 +2136,7 @@ function RuleBuilder:ShowTriggerEditor(varIndex, trigIndex)
     self:ClearRightPanel()
     ClearEditorFrames()
 
-    if not _rightPanel or not _editingData or not _isCustomized then return end
+    if not _rightPanel or not _editingData or (not _isCustomized and not _isReadOnly) then return end
     local def = _editingData.stateVarDefs and _editingData.stateVarDefs[varIndex]
     local trig = _editingData.triggers and _editingData.triggers[trigIndex]
     if not def or not trig then return end
@@ -2167,4 +2430,6 @@ function RuleBuilder:ShowTriggerEditor(varIndex, trigIndex)
             scrollChild:SetHeight(math.max(top - bottom + 30, 300))
         end
     end)
+
+    if _isReadOnly then DisableEditorControls() end
 end
