@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.23.0 - 2026-04-12
+
+### Added
+- **Assisted Combat suggestion gate**: New `ac_suggested` engine condition allows profiles and custom rules to key off Blizzard's live recommendation surface instead of direct spell-usable checks.
+- **Phase and queue layout controls**: Settings wiring now exposes the phase indicator plus queue icon count, size, and spacing options in the live UI.
+
+### Changed
+- **Hunter-first scope**: README and project goals now define Hunter as the current shipping target, while other classes remain foundation/alpha support.
+- **MM/SV readiness rules**: Marksmanship and Survival cooldown-sensitive overrides now follow Assisted Combat suggestions instead of direct `IsSpellUsable()` readiness checks.
+- **SV Sentinel Wildfire Bomb handling**: Charge-cap logic now relies only on validated charge-count signals.
+
+### Fixed
+- **Enemy-target-only visibility**: Overlay visibility now matches the setting text while preserving the documented combat fallback.
+- **Survival spell routing**: Removed the old Hatchet Toss blacklist path that could suppress `Kill Command` through a shared spell ID in melee.
+- **BM Pack Leader debug output**: Bestial Wrath cooldown debug text now reflects the actual configured cooldown.
+
 ## v0.20.0 - 2026-04-09
 
 ### Added
