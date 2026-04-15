@@ -12,11 +12,14 @@ local SCHEMA_VERSION = 1
 -- Condition Schema Registry
 ------------------------------------------------------------------------
 
-local _conditionSchemas = {}
+local _conditionSchemas = {}  -- [source] = { [id] = schema }
 
 function CustomProfile.RegisterConditionSchema(source, schemas)
+    if not _conditionSchemas[source] then
+        _conditionSchemas[source] = {}
+    end
     for _, schema in ipairs(schemas) do
-        _conditionSchemas[schema.id] = {
+        _conditionSchemas[source][schema.id] = {
             id = schema.id,
             label = schema.label,
             params = schema.params or {},
@@ -27,17 +30,39 @@ end
 
 
 function CustomProfile.GetAllConditionSchemas()
-    return _conditionSchemas
+    -- Flat view: union of all sources (for validation / allowed-ID checks).
+    -- When the same ID exists in multiple sources the entries are
+    -- structurally identical, so any source's copy is valid.
+    local flat = {}
+    for _, schemas in pairs(_conditionSchemas) do
+        for id, schema in pairs(schemas) do
+            flat[id] = schema
+        end
+    end
+    return flat
+end
+
+function CustomProfile.HasConditionForSource(source, conditionId)
+    local schemas = _conditionSchemas[source]
+    return schemas ~= nil and schemas[conditionId] ~= nil
 end
 
 function CustomProfile.GetConditionSchemasForProfile(profileId)
     local result = {}
-    for id, schema in pairs(_conditionSchemas) do
-        if schema.source == "_engine" or schema.source == profileId
-            or schema.source == profileId .. "_custom" then
-            result[#result + 1] = schema
+    local seen = {}
+    local function collect(source)
+        local schemas = _conditionSchemas[source]
+        if not schemas then return end
+        for id, schema in pairs(schemas) do
+            if not seen[id] then
+                seen[id] = true
+                result[#result + 1] = schema
+            end
         end
     end
+    collect("_engine")
+    collect(profileId)
+    collect(profileId .. "_custom")
     table.sort(result, function(a, b) return a.label < b.label end)
     return result
 end
@@ -147,11 +172,7 @@ end
 
 function CustomProfile.ClearCustomConditions(profileId)
     local source = profileId .. "_custom"
-    for id, schema in pairs(_conditionSchemas) do
-        if schema.source == source then
-            _conditionSchemas[id] = nil
-        end
-    end
+    _conditionSchemas[source] = nil
 end
 
 ------------------------------------------------------------------------
@@ -348,6 +369,16 @@ function CustomProfile.Compile(baseProfile, customData)
 
     function wrapper:OnSpellCast(spellID)
         local now = GetTime()
+        local needsRefresh = false
+        for _, trigger in ipairs(self._customTriggers) do
+            if trigger.spellID == spellID and trigger.guard then
+                needsRefresh = true
+                break
+            end
+        end
+        if needsRefresh then
+            TrueShot.Engine:InvalidatePerTickCaches()
+        end
         for _, trigger in ipairs(self._customTriggers) do
             if trigger.spellID == spellID then
                 -- Guard check: skip this trigger if guard condition fails
@@ -511,16 +542,11 @@ function CustomProfile.WrapActivation()
 end
 
 function CustomProfile.RegisterCustomConditions(profileId, stateVarDefs)
-    -- Clear previous custom conditions for this profile
+    -- Clear and re-register custom conditions for this profile
     local source = profileId .. "_custom"
-    for id, schema in pairs(_conditionSchemas) do
-        if schema.source == source then
-            _conditionSchemas[id] = nil
-        end
-    end
-    -- Register current defs
+    _conditionSchemas[source] = {}
     for _, def in ipairs(stateVarDefs or {}) do
-        _conditionSchemas[def.name] = {
+        _conditionSchemas[source][def.name] = {
             id = def.name,
             label = def.label or def.name,
             params = {},

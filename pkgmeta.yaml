@@ -3,10 +3,15 @@ package-as: TrueShot
 ignore:
   - .git
   - .gitignore
+  - .claude
   - .vscode
   - .idea
+  - .superpowers
+  - CLAUDE.md
+  - tests
   - tasks
   - docs/specs
+  - graphify-out
   - "*.zip"
   - "*.bak"
   - pkgmeta.yaml

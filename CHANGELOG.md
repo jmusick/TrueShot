@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.23.6 - 2026-04-15
+
+### Changed
+- **Condition schema registry**: Profile-specific condition schemas now coexist safely even when multiple profiles use the same condition ID.
+- **Per-tick cache invalidation**: Engine-side hostile-count and Assisted Combat suggestion caches now use a robust compute-tick invalidation path instead of fragile float-time equality.
+- **Release packaging**: Test files and local repo metadata are now excluded from packaged addon zips.
+
+### Fixed
+- **Custom rule validation**: Imported state variable names now reliably detect conflicts with profile conditions even when duplicate condition IDs exist across profiles.
+- **Import hardening**: Malformed Base64 payloads are rejected early with explicit validation errors instead of being decoded into corrupt bytes.
+
 ## v0.23.0 - 2026-04-12
 
 ### Added

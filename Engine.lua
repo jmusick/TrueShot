@@ -15,9 +15,12 @@ local function IsSecret(val)
     return issecretvalue and issecretvalue(val) or false
 end
 
--- Per-tick hostile nameplate cache (invalidated each ComputeQueue call)
+-- Per-tick caches: use a monotonic frame counter instead of GetTime() floats
+-- to guarantee exactly one recompute per ComputeQueue call.
+local _computeTick = 0
+
 local _hostileCount = 0
-local _hostileCountTick = 0
+local _hostileCountTick = -1
 
 local function IsAttackableUnitToken(unit)
     if type(unit) ~= "string" or unit == "" or IsSecret(unit) then
@@ -37,10 +40,15 @@ local function IsAttackableUnitToken(unit)
     return canAttack == true
 end
 
+local _hostileCountTime = 0
+
 local function GetHostileCount()
     local now = GetTime()
-    if _hostileCountTick == now then return _hostileCount end
-    _hostileCountTick = now
+    if _hostileCountTick == _computeTick and _hostileCountTime == now then
+        return _hostileCount
+    end
+    _hostileCountTick = _computeTick
+    _hostileCountTime = now
     if not C_NamePlate or not C_NamePlate.GetNamePlates then
         _hostileCount = 0
         return 0
@@ -103,15 +111,19 @@ end
 -- Assisted Combat suggestion cache
 ------------------------------------------------------------------------
 
-local _acSuggestionTick = 0
+local _acSuggestionTick = -1
 local _acPrimarySpell = nil
 local _acSuggestedSpells = {}
 
+local _acSuggestionTime = 0
+
 local function RefreshACSuggestions()
     local now = GetTime()
-    if _acSuggestionTick == now then return end
-
-    _acSuggestionTick = now
+    if _acSuggestionTick == _computeTick and _acSuggestionTime == now then
+        return
+    end
+    _acSuggestionTick = _computeTick
+    _acSuggestionTime = now
     _acPrimarySpell = nil
     wipe(_acSuggestedSpells)
 
@@ -270,6 +282,10 @@ function Engine:RebuildBlacklist()
     end
 end
 
+function Engine:InvalidatePerTickCaches()
+    _computeTick = _computeTick + 1
+end
+
 -- Reusable tables to reduce GC churn in OnUpdate
 local _queue = {}
 local _condBlacklist = {}
@@ -281,6 +297,7 @@ local function IsBlocked(spellID)
 end
 
 function Engine:ComputeQueue(iconCount)
+    _computeTick = _computeTick + 1
     wipe(_queue)
     local queue = _queue
     local profile = self.activeProfile

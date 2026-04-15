@@ -52,20 +52,33 @@ end
 local function Base64Decode(data)
     -- Strip whitespace and padding
     data = data:gsub("%s", ""):gsub("=+$", "")
+    if #data == 0 then
+        return nil, "Empty base64 payload"
+    end
+    -- Validate: after stripping padding, length must be valid (not 1 mod 4)
+    if #data % 4 == 1 then
+        return nil, "Invalid base64 length"
+    end
     local out = {}
     local len = #data
     for i = 1, len, 4 do
-        local c1 = B64_DECODE[data:byte(i)] or 0
-        local c2 = i + 1 <= len and (B64_DECODE[data:byte(i + 1)] or 0) or 0
-        local c3 = i + 2 <= len and (B64_DECODE[data:byte(i + 2)] or 0) or 0
-        local c4 = i + 3 <= len and (B64_DECODE[data:byte(i + 3)] or 0) or 0
+        local c1 = B64_DECODE[data:byte(i)]
+        local c2 = i + 1 <= len and B64_DECODE[data:byte(i + 1)] or nil
+        local c3 = i + 2 <= len and B64_DECODE[data:byte(i + 2)] or nil
+        local c4 = i + 3 <= len and B64_DECODE[data:byte(i + 3)] or nil
 
-        out[#out + 1] = string.char(c1 * 4 + math.floor(c2 / 16))
+        -- Reject unknown characters
+        if not c1 or (i + 1 <= len and not c2)
+            or (i + 2 <= len and not c3) or (i + 3 <= len and not c4) then
+            return nil, "Invalid base64 character at position " .. i
+        end
+
+        out[#out + 1] = string.char(c1 * 4 + math.floor((c2 or 0) / 16))
         if i + 2 <= len then
-            out[#out + 1] = string.char((c2 % 16) * 16 + math.floor(c3 / 4))
+            out[#out + 1] = string.char((c2 % 16) * 16 + math.floor((c3 or 0) / 4))
         end
         if i + 3 <= len then
-            out[#out + 1] = string.char((c3 % 4) * 64 + c4)
+            out[#out + 1] = string.char(((c3 or 0) % 4) * 64 + (c4 or 0))
         end
     end
     return table.concat(out)
@@ -388,9 +401,9 @@ function ProfileIO.Decode(importString)
     end
 
     -- Base64 decode
-    local decoded = Base64Decode(payload)
-    if not decoded or decoded == "" then
-        return nil, "Base64 decode failed"
+    local decoded, b64err = Base64Decode(payload)
+    if not decoded then
+        return nil, "Base64 decode failed: " .. (b64err or "unknown error")
     end
 
     -- Deserialize
@@ -743,13 +756,8 @@ function ProfileIO.Validate(data)
                     errors[#errors + 1] = "State var '" .. name .. "' conflicts with engine condition"
                 end
                 -- Check base profile conditions (source == profileId only)
-                if data.profileId then
-                    local allSchemas = CustomProfile.GetAllConditionSchemas()
-                    for id, schema in pairs(allSchemas) do
-                        if schema.source == data.profileId and id == name then
-                            errors[#errors + 1] = "State var '" .. name .. "' conflicts with profile condition"
-                        end
-                    end
+                if data.profileId and CustomProfile.HasConditionForSource(data.profileId, name) then
+                    errors[#errors + 1] = "State var '" .. name .. "' conflicts with profile condition"
                 end
                 if varNames[name] and varNames[name] > 1 then
                     errors[#errors + 1] = "Duplicate state var name: " .. name
