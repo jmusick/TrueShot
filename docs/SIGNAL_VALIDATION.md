@@ -58,15 +58,20 @@ Note: A more precise filter could add `UnitAffectingCombat(unit)` per nameplate,
 | pcall safe | yes | No errors |
 | currentCharges secret | no (not secret) | Returned `2` |
 | maxCharges secret | no (not secret) | Returned `2` |
-| cooldownStartTime secret | untested | Needs charge consumption + re-probe |
-| cooldownDuration secret | untested | Needs charge consumption + re-probe |
-| Real-time update | untested | Needs charge consumption + re-probe |
+| cooldownStartTime secret | untested | Needs charge consumption + re-probe if a future profile wants recharge timing. |
+| cooldownDuration secret | untested | Needs charge consumption + re-probe if a future profile wants recharge timing. |
+| Real-time update | untested | Needs charge consumption + re-probe if a future profile wants recharge timing. |
 | **Classification** | **VALIDATED** | Charge count (current/max) is non-secret and accurate. Recharge timing fields still need confirmation but are not required for charge-count rules. |
 
 Engine condition: `spell_charges` (Engine.lua)
 Fallback if unavailable: condition returns false, charge-based timing rules do not fire. Cast-event timer heuristic remains as backup.
 
-Validated for: charge-count conditions (e.g. `spell_charges >= 2`). Recharge timing usability TBD.
+Validated for: charge-count conditions (e.g. `spell_charges >= 2`).
+
+Current shipped implication:
+
+- the addon may safely use charge-count rules today
+- shipped Hunter profiles should not depend on recharge timing fields until those fields are validated separately
 
 ## Runtime Cost
 
@@ -96,4 +101,4 @@ Record results from each context where tested:
 - [ ] Dungeon (trash pack) - deferred: expected more accurate plate count
 - [ ] Dungeon (boss casting) - deferred: instance secret behavior TBD
 - [ ] Different nameplate CVar settings - deferred: implementation note, not classification change
-- [ ] Charge consumption test - deferred: recharge timing fields not needed for charge-count rules
+- [ ] Charge consumption test - deferred: recharge timing fields remain out of scope for shipped charge-count rules

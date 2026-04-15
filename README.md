@@ -14,6 +14,8 @@ Blizzard's built-in rotation helper gets you started, but it has gaps: wrong AoE
 
 TrueShot is built for Hunters first. Hunter is the class that should deliver clear practical value today, and all three specs are the standard the addon should be judged against.
 
+The current release-readiness baseline for Hunter lives in [Hunter Validation Matrix](docs/HUNTER_VALIDATION_MATRIX.md). That document separates static confidence from the remaining live combat checks still needed for a clean `1.0` claim.
+
 | Spec | Hero Path | Key Overrides |
 |------|-----------|---------------|
 | **Beast Mastery** | Dark Ranger | Black Arrow during Withering Fire, Wailing Arrow sequencing, AoE hint for Wild Thrash |
@@ -37,7 +39,7 @@ We currently treat them as opportunistic expansion paths: they can improve over 
 | **Druid** | Feral, Balance | 4 | Tiger's Fury/Berserk and Celestial Alignment burst tracking. Resource-dependent (Energy, Astral Power) limits overrides. |
 | **Mage** | Fire, Frost, Arcane | 6 | Combustion, Frozen Orb, Arcane Surge burst windows. Frost shatter combo (Flurry > Ice Lance). |
 
-All 20 profiles across 4 classes support automatic hero path detection via `IsPlayerSpell` markers, but only Hunter should currently be read as fully productized support.
+All 20 profiles across 4 classes support automatic hero path detection via `IsPlayerSpell` markers, but only Hunter should currently be read as the primary productized support lane.
 
 ## How It Works
 
@@ -110,6 +112,10 @@ The addon is:
 - [Profile Contract](docs/PROFILE_CONTRACT.md)
 - [Profile Authoring Guide](docs/PROFILE_AUTHORING.md)
 - [Signal Validation](docs/SIGNAL_VALIDATION.md)
+- [Hunter Validation Matrix](docs/HUNTER_VALIDATION_MATRIX.md)
+- [BM Rotation Reference](docs/BM_ROTATION_REFERENCE.md)
+- [MM Rotation Reference](docs/MM_ROTATION_REFERENCE.md)
+- [SV Rotation Reference](docs/SV_ROTATION_REFERENCE.md)
 
 ## License
 
