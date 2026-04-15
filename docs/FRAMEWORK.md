@@ -1,12 +1,12 @@
 # Framework Model
 
-`TrueShot` is now structured around three layers:
+`TrueShot` is structured around three layers:
 
 1. `Engine`
 2. `Profile`
 3. `Presentation`
 
-The current addon already uses this split in code, but the framework is still early and intentionally narrow in runtime scope.
+The current addon already uses this split in code. The framework remains intentionally conservative in runtime scope, but it is no longer in a single-profile early alpha state.
 
 ## 1. Engine
 
@@ -46,12 +46,12 @@ Examples:
 - `Hunter.MM.Sentinel`
 - `Hunter.SV.PackLeader`
 
-If the project ever broadens beyond hunters, the same contract can hold:
+The same contract already supports non-Hunter groundwork profiles today, and it remains the intended shape if the project broadens further:
 
 - `Mage.Fire.Sunfury`
 - `Paladin.Ret.HeraldOfTheSun`
 
-That said, the current public branding is still hunter-focused. If the long-term goal becomes truly all classes, the product name should eventually be revisited.
+That said, the current public product promise is still Hunter-first. Other classes prove the framework can scale, but they are not the current quality bar.
 
 ## 3. Presentation
 
@@ -142,10 +142,17 @@ The engine should never fail hard when a profile-specific heuristic cannot run.
 
 ## Current Reality
 
-Today, `TrueShot` is still earlier than the eventual broader framework goal:
+Today, `TrueShot` already has the broader framework shape in production code:
 
 - one shared engine
-- one shipped BM profile path
-- one compact display implementation
+- multiple shipped profile modules across several classes
+- one shared presentation layer
 
-That is acceptable for the alpha. The purpose of this document is to define how the code should keep expanding without losing its lightweight character.
+The current reality is not "BM-only alpha" anymore.
+The real constraint is different:
+
+- Hunter remains the primary shipping target
+- Hunter is the class family that should justify a future `1.0`
+- other classes exist as foundation and early expansion lanes, not as equal product promises
+
+The purpose of this document is to keep that broader codebase aligned without losing its lightweight character.

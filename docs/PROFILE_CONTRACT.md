@@ -1,6 +1,6 @@
 # Profile Contract
 
-This document defines how a class/spec module should plug into `TrueShot` once the alpha is split into explicit profile modules.
+This document defines how a class/spec module plugs into `TrueShot`.
 
 A profile is a data-and-state package, not a second engine.
 
@@ -119,17 +119,17 @@ Rule examples:
 The current addon now has:
 
 - a generic `Engine.lua`
-- a presentation layer in `Display.lua`
-- a real BM profile module in `Profiles/BM_DarkRanger.lua`
+- a shared presentation layer in `Display.lua`
+- multiple shipped profile modules across Hunter and foundation classes
 
-That means this contract is no longer hypothetical.
-It describes the actual direction new profile modules should follow.
+That means this contract is not hypothetical.
+It describes the actual shape new profile modules are expected to follow.
 
-What is still intentionally narrow:
+What is still intentionally narrow is not the module count, but the product promise:
 
-- only one shipped hunter profile exists today
-- hero-path specificity is still encoded in that one BM profile module
-- future specs still need their own validated signal surface before implementation
+- Hunter is still the primary shipping target
+- Hunter is the class family being pushed toward `1.0`
+- future profile work still needs its own validated signal surface before it should be treated as productized support
 
 ## Public Rule Language
 
