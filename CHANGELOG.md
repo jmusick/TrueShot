@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.25.1 - 2026-04-19
+
+### Fixed
+- **Frost Mage hero-talent detection** (reported as [#88](https://github.com/itsDNNS/TrueShot/issues/88)). Frost Mage players running the Spellslinger hero tree had the addon activate the Frostfire profile instead. The Frost Spellslinger marker this addon tried to use was a proc-driven buff effect, so the legacy `IsPlayerSpell(markerSpell)` activation path could not identify the tree. `Engine:ActivateProfile` now first resolves the player's hero tree via `C_ClassTalents.GetActiveHeroTalentSpec()` and matches it against the new optional `heroTalentSubTreeID` profile field; the existing `markerSpell` path is kept as a fallback so no other profile needed to change. `Profiles/Frost_Spellslinger.lua` switches to `heroTalentSubTreeID = 40`, which is the Blizzard `TraitSubTree` identifier for Spellslinger.
+- **Tests**: new `tests/test_engine_hero_talent.lua` covers the hero-tree activation path end to end with structural guards (Frost_Spellslinger must declare the correct SubTreeID and must not keep the old proc-buff marker) plus behavioural guards (Spellslinger active -> Spellslinger profile wins, Frostfire SubTreeID -> Frostfire fallback, no active hero talent -> Frostfire fallback, Hunter markerSpell path still works for regression). API-missing, secret-value, and pcall-error paths are all exercised so the engine degrades cleanly when the `C_ClassTalents` surface is unavailable. Full test suite now reports 33 Hunter + 21 CD ledger + 12 condition registry + 9 engine hero talent + 8 base64 = 83 passing.
+
 ## v0.25.0 - 2026-04-18
 
 ### Added

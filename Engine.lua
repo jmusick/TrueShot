@@ -455,6 +455,21 @@ function Engine:RegisterProfile(profile)
     table.insert(TrueShot.Profiles[specID], profile)
 end
 
+-- Resolve the player's active hero talent tree via Blizzard's authoritative
+-- API. Returns a numeric SubTreeID or nil. The call is guarded with pcall
+-- and issecretvalue so profile activation stays safe when the API is
+-- unavailable or returns a secret value.
+local function GetActiveHeroTalentSubTreeID()
+    if not C_ClassTalents or not C_ClassTalents.GetActiveHeroTalentSpec then
+        return nil
+    end
+    local ok, subTreeID = pcall(C_ClassTalents.GetActiveHeroTalentSpec)
+    if not ok then return nil end
+    if IsSecret(subTreeID) then return nil end
+    if type(subTreeID) ~= "number" then return nil end
+    return subTreeID
+end
+
 function Engine:ActivateProfile(specID)
     local candidates = TrueShot.Profiles[specID]
     if not candidates or #candidates == 0 then
@@ -464,27 +479,39 @@ function Engine:ActivateProfile(specID)
 
     local prev = self.activeProfile
 
-    -- Match by markerSpell (hero path detection via IsPlayerSpell)
-    for _, profile in ipairs(candidates) do
-        if profile.markerSpell and IsPlayerSpell(profile.markerSpell) then
-            self.activeProfile = profile
-            if profile ~= prev then
-                if profile.ResetState then profile:ResetState() end
+    local function adopt(profile)
+        self.activeProfile = profile
+        if profile ~= prev then
+            if profile.ResetState then profile:ResetState() end
+        end
+        self:RebuildBlacklist()
+        return true
+    end
+
+    -- First pass: match by heroTalentSubTreeID via C_ClassTalents. Hero trees
+    -- whose signature talents are passives or procs (for example Spellslinger)
+    -- cannot be identified via IsPlayerSpell, because those spells never land
+    -- in the player spellbook. The SubTreeID check short-circuits that case.
+    local activeSubTreeID = GetActiveHeroTalentSubTreeID()
+    if activeSubTreeID then
+        for _, profile in ipairs(candidates) do
+            if profile.heroTalentSubTreeID == activeSubTreeID then
+                return adopt(profile)
             end
-            self:RebuildBlacklist()
-            return true
         end
     end
 
-    -- Fallback: first profile without a marker, or first profile overall
+    -- Second pass: match by markerSpell (legacy spellbook-based detection).
     for _, profile in ipairs(candidates) do
-        if not profile.markerSpell then
-            self.activeProfile = profile
-            if profile ~= prev then
-                if profile.ResetState then profile:ResetState() end
-            end
-            self:RebuildBlacklist()
-            return true
+        if profile.markerSpell and IsPlayerSpell(profile.markerSpell) then
+            return adopt(profile)
+        end
+    end
+
+    -- Fallback: first profile without either marker, or first profile overall.
+    for _, profile in ipairs(candidates) do
+        if not profile.markerSpell and not profile.heroTalentSubTreeID then
+            return adopt(profile)
         end
     end
 
