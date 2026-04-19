@@ -7,10 +7,18 @@ local Profile = {
     id = "Mage.Frost.Spellslinger",
     displayName = "Frost Spellslinger",
     specID = 64,
-    markerSpell = 443722, -- Frost Splinter (Spellslinger exclusive)
+    -- Hero-tree detection: Spellslinger's signature talents are all passives
+    -- or proc auras that never land in the player spellbook, so the legacy
+    -- IsPlayerSpell(markerSpell) pattern cannot identify this hero tree.
+    -- Use Blizzard's hero-talent SubTree API instead via
+    -- C_ClassTalents.GetActiveHeroTalentSpec(). SubTreeID 40 identifies
+    -- Spellslinger for both Arcane and Frost Mage (sourced from Blizzard's
+    -- TraitSubTree DB2). Reported as issue #88.
+    --
     -- Inverted from Fire/Arcane pattern: Frostfire is the unmarked fallback
-    -- because it covers 100% of top parses. This marker ensures Spellslinger
-    -- only activates for the rare players who actually talent into it.
+    -- because it covers the bulk of top parses. This marker ensures
+    -- Spellslinger only activates for players who actually pick the tree.
+    heroTalentSubTreeID = 40,
     version = 1,
 
     state = {},
