@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.26.0 - 2026-04-23
+
+### Fixed
+- **Feral Wildstalker hero-tree activation** (reported as [#92](https://github.com/itsDNNS/TrueShot/issues/92)). The Wildstalker profile no longer relies on `Bloodseeker Vines`, which is proc-driven hidden state and therefore not a reliable spellbook marker. `Profiles/Feral_Wildstalker.lua` now declares Blizzard's authoritative `heroTalentSubTreeID = 22`, while `Profiles/Feral_DruidOfTheClaw.lua` declares `heroTalentSubTreeID = 21` and keeps `Ravage` only as a legacy fallback when the hero-talent API is unavailable.
+- **Feral Berserk / Incarnation cooldown handling**. `State/CDLedger.lua` now tracks `Berserk (106951)` and `Incarnation: Avatar of Ashamane (102543)` as a shared cooldown pair, so Feral queue rules stop resurfacing Berserk while Incarnation is already on cooldown. Both Feral profiles also treat Incarnation as the longer 20-second burst window in profile state.
+- **Feral queue spam / utility leakage**. The Feral profiles now suppress `Rake` on the same target until the local Pandemic refresh window, and they filter `Cat Form` and `Mark of the Wild` from the queue while those states are already active on the player.
+
+### Added
+- **Feral regression suite**. New `tests/test_druid_profiles.lua` covers Wildstalker burst windows, shared Berserk/Incarnation cooldown behavior, same-target Rake suppression, Cat Form filtering, and Mark of the Wild filtering.
+
+### Changed
+- **Feral release posture**. These fixes make the Wildstalker activation path and the specific follow-up regressions above meaningfully safer, but Feral support remains alpha overall and is still not positioned as ready for serious play.
+
+### Tests
+- `tests/test_engine_hero_talent.lua` now covers the Druid hero-tree activation path for Wildstalker and Druid of the Claw, including subtree precedence over legacy marker spells.
+- `tests/test_cd_ledger.lua` now covers Berserk / Incarnation shared cooldown behavior and cooldown-API reseeding for that pair.
+- Full release verification before tagging: `lua tests/test_druid_profiles.lua` => 8/8, `lua tests/test_cd_ledger.lua` => 27/27, `lua tests/test_engine_hero_talent.lua` => 14/14, `lua tests/test_hunter_profiles.lua` => 39/39, `lua tests/test_condition_registry.lua` => 12/12, `lua tests/test_base64_decode.lua` => 8/8.
+
 ## v0.25.2 - 2026-04-20
 
 ### Fixed
