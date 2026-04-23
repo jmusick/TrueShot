@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.26.1 - 2026-04-23
+
+### Fixed
+- **BM Pack Leader queue stability and filler fallthrough** (reported as [#93](https://github.com/itsDNNS/TrueShot/issues/93)). `BM Pack Leader` no longer depends on a single first-match `PIN` / `PREFER` chain for the `Bestial Wrath` follow-up path. The profile now runs through a hybrid local decision pipeline in `Engine.lua`: hard gates first, then explicit priority buckets, then score/tiebreak selection only inside the active bucket. For Pack Leader this means `Bestial Wrath`, the short `Barbed Shot` setup window before `Bestial Wrath`, Stampede-triggering `Kill Command`, proc-driven `Kill Command`, and the fallback choice between `Barbed Shot` and `Cobra Shot` are evaluated as separate windows instead of competing as flat rules. This closes the recurring state where `Kill Command` or `Barbed Shot` could linger too long on queue slot 1 while a better legal filler already existed.
+
+### Added
+- **Hybrid priority engine pilot**. `docs/HYBRID_PRIORITY_ENGINE.md` documents the new queue model and its intended migration boundary. `BM Pack Leader` is the first pilot profile using that path.
+- **Lua validation entrypoint**. `scripts/validate_lua.ps1` now runs `luac`, `luacheck` when present, and the core Lua test suite in one reproducible command.
+
+### Changed
+- **BM Pack Leader queue semantics**. `Focus` is no longer treated as a hard legality gate for `Cobra Shot`; it only affects scoring as a soft signal. Queue debug metadata now records hybrid `bucket`, `score`, and `scoreBreakdown` so the live choice is easier to audit.
+- **Display glow handling**. `Display.lua` treats hybrid local decisions like other local overrides, so the primary suggestion still renders with explicit overlay emphasis.
+
+### Tests
+- `tests/test_hunter_profiles.lua` now covers the hybrid `BM Pack Leader` buckets, including the dedicated `Barbed Shot` setup window before `Bestial Wrath`, the `Kill Command` proc/stampede path, and the filler fallback to `Cobra Shot` when `Kill Command` is not truly available.
+- Full release verification before tagging: `powershell -ExecutionPolicy Bypass -File .\scripts\validate_lua.ps1` => `tests/test_hunter_profiles.lua` 50/50, `tests/test_cd_ledger.lua` 27/27, `tests/test_condition_registry.lua` 12/12, `tests/test_engine_hero_talent.lua` 10/10, `tests/test_base64_decode.lua` 8/8.
+
 ## v0.26.0 - 2026-04-23
 
 ### Fixed

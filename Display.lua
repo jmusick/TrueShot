@@ -595,6 +595,7 @@ end
 local GLOW_COLORS = {
     pin    = { 0.0, 0.8, 1.0 },
     prefer = { 0.4, 0.6, 1.0 },
+    hybrid = { 0.1, 0.9, 0.6 },
 }
 
 local function HideGlow(icon)
@@ -1455,7 +1456,7 @@ function Display:UpdateQueue(queue)
         icons[1].border:SetVertexColor(1.0, 1.0, 1.0, 1.0)
     end
     if TrueShot.GetOpt("showOverrideIndicator") and icons[1] then
-        if meta and (meta.source == "pin" or meta.source == "prefer") then
+        if meta and (meta.source == "pin" or meta.source == "prefer" or meta.source == "hybrid") then
             ShowGlow(icons[1], meta.source)
         else
             HideGlow(icons[1])

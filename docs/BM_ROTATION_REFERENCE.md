@@ -73,17 +73,20 @@ Same as ST but add **Wild Thrash every 8 seconds on cooldown**. Wild Thrash:
 - Dump all BS charges before BW. Holding a KC charge to enter BW with 2 is worth it.
 - TrueShot: BW only blacklisted when on CD, NOT gated by BS charges (AC handles BS dump sequencing)
 
-### TrueShot Profile Rules (BM_PackLeader.lua)
+### TrueShot Hybrid Buckets (BM_PackLeader.lua)
 
-| Rule | Type | Condition | Rationale |
+| Bucket / Gate | Type | Condition | Rationale |
 |------|------|-----------|-----------|
 | Call Pet / Revive Pet / Counter Shot | BLACKLIST | always | Utility, never rotation |
-| BW on CD | BLACKLIST_CONDITIONAL | bw_on_cd | Suppress when on CD |
-| **Stampede (first KC after BW)** | **PIN** | **stampede_available** | **[src Azortharion 2026-04-10] "Activate Bestial Wrath. Once activated, your next Kill Command will spawn a Stampede." Flag is armed on BW cast, cleared on the next KC cast.** |
-| KC proc glow | PIN | spell_glowing(KC) AND NOT last_cast_was_kc | Alpha Predator / Call of the Wild / Howl of the Pack Leader proc |
-| Wild Thrash AoE | AoE Hint | in_combat AND target_count >= 2 AND NOT wt_on_cd | On CD in multi-target |
+| BW on CD | BLACKLIST_CONDITIONAL | bw_on_cd | Suppress BW while local BW timer is active |
 | KC anti-repeat | BLACKLIST_CONDITIONAL | last_cast_was_kc | Nature's Ally enforcement |
-| Cobra Shot Focus pool | BLACKLIST_CONDITIONAL | focus<65 AND KC usable | Avoid depleting Focus before KC |
+| **Bestial Wrath** | **Hybrid bucket `cooldown`** | **NOT bw_on_cd** | **Re-surface BW when Blizzard Assisted Combat omits later recasts.** |
+| **Barbed Shot before BW** | **Hybrid bucket `bw_setup`** | **BS charge available AND BW remaining <= 3s** | **Matches the current Wowhead setup guidance without hard-coding hidden aura/resource truth.** |
+| **Stampede (first KC after BW)** | **Hybrid bucket `stampede`** | **stampede_available** | **[src Azortharion 2026-04-10] "Activate Bestial Wrath. Once activated, your next Kill Command will spawn a Stampede."** |
+| KC proc glow | Hybrid bucket `proc` | spell_glowing(KC) | Alpha Predator / Call of the Wild / Howl of the Pack Leader proc |
+| Barbed Shot filler | Hybrid bucket `barbed_filler` | KC not immediate, BS charge available, not `barbed_recent` | First filler family when KC is not the next cast |
+| Cobra Shot filler | Hybrid bucket `cobra_filler` | KC not immediate, BS unavailable or `barbed_recent` | Last-resort filler; Focus only lowers score heuristically, never legality |
+| Wild Thrash AoE | AoE Hint | in_combat AND target_count >= 2 AND NOT wt_on_cd | On CD in multi-target |
 
 ---
 

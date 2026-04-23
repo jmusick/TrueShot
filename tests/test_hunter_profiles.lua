@@ -41,11 +41,15 @@ _G.UnitSpellHaste = function(_) return 0 end
 -- can drive `spell_charges` conditions deterministically.
 local _charges = {}
 local _spell_usable = {}
+local _spell_cooldowns = {}
 local function set_charges(spellID, current, max)
     _charges[spellID] = { currentCharges = current, maxCharges = max or current }
 end
 _G.C_Spell = _G.C_Spell or {}
 _G.C_Spell.GetSpellCharges = function(spellID) return _charges[spellID] end
+_G.C_Spell.GetSpellCooldown = function(spellID)
+    return _spell_cooldowns[spellID] or { startTime = 0, duration = 0, modRate = 1 }
+end
 
 -- MM Sentinel probes the player Trueshot aura as the primary signal, with a
 -- timer fallback only when the API is absent. Tests drive both paths by
@@ -69,7 +73,9 @@ _G.CreateFrame = function(_frameType, _name)
 end
 _G.wipe = function(t) for k in pairs(t) do t[k] = nil end return t end
 _G.IsPlayerSpell = function(_) return true end
-_G.UnitPower = function(_unit, _powerType) return 100 end
+local _unit_power = 100
+local function set_power(value) _unit_power = value end
+_G.UnitPower = function(_unit, _powerType) return _unit_power end
 _G.UnitExists = function(_) return false end
 _G.UnitCanAttack = function(_, _) return false end
 _G.C_NamePlate = _G.C_NamePlate or { GetNamePlates = function() return {} end }
@@ -172,10 +178,12 @@ local function test(name, fn)
     set_time(1000.0)
     _charges = {}
     _spell_usable = {}
+    _spell_cooldowns = {}
     _auras_by_spell = {}
     _ac_available = false
     _ac_next_spell = nil
     _ac_rotation_spells = {}
+    _unit_power = 100
 
     local ok, err = pcall(fn)
     if ok then
@@ -326,32 +334,38 @@ test("BM PL: Stampede PIN is ordered before the KC Proc PIN (first-match-wins)",
         "reason='Stampede', the Stampede rule must be declared before the KC Proc rule.")
 end)
 
-test("BM PL: bw_on_cd shim still routes through the CDLedger", function()
+test("BM PL: bw_on_cd uses the local Bestial Wrath cast timer", function()
     local p = P("Hunter.BM.PackLeader")
     p:OnSpellCast(19574)
     advance_time(10)
     assert_true(p:EvalCondition({ type = "bw_on_cd" }),
-        "Legacy shim must mirror CDLedger:IsOnCooldown for backward-compat")
+        "Pack Leader BW suppression should stay active during the local 30s window")
     advance_time(25)
     assert_false(p:EvalCondition({ type = "bw_on_cd" }),
-        "After the 30s ledger window the legacy shim must report off-CD")
+        "After 35s total, the local BW timer must report ready again")
 end)
 
-test("BM PL: new rules use cd_remaining via the Engine condition evaluator", function()
+test("BM PL: local BW timer wins even if the ledger is stale", function()
     local p = P("Hunter.BM.PackLeader")
-    -- Before any cast the ledger reports 0 remaining.
     local Engine = TrueShot.Engine
-    assert_false(Engine:EvalCondition({ type = "cd_remaining", spellID = 19574, op = ">", value = 0 }),
-        "cd_remaining > 0 should be false before any BW cast")
-    -- After a cast the engine-level condition must fire immediately (same-cast
-    -- guarantee relies on Core.lua calling CDLedger BEFORE Engine:OnSpellCast).
+    Engine.activeProfile = p
+    Engine:RebuildBlacklist()
+
     p:OnSpellCast(19574)
-    assert_true(Engine:EvalCondition({ type = "cd_remaining", spellID = 19574, op = ">", value = 0 }),
-        "Immediately after cast, cd_remaining > 0 must evaluate true for the " ..
-        "BW BLACKLIST_CONDITIONAL rule")
     advance_time(30.1)
-    assert_false(Engine:EvalCondition({ type = "cd_remaining", spellID = 19574, op = ">", value = 0 }),
-        "After 30s the BW CD must be released")
+
+    TrueShot.CDLedger.state[19574] = {
+        cast_time = GetTime(),
+        expected_ready = GetTime() + 999,
+    }
+
+    assert_false(p:EvalCondition({ type = "bw_on_cd" }),
+        "After 30s, the local BW timer must report ready even if the ledger still looks stale")
+
+    set_ac_state(true, 56641, { 56641, 34026, 217200 })
+    local queue = Engine:ComputeQueue(3)
+    assert_eq(queue[1], 19574,
+        "A stale ledger entry must not stop Pack Leader from resurfacing BW once the local timer is ready")
 end)
 
 test("BM PL: GetPhase reads CDLedger:SecondsSinceCast for the 15s burst window", function()
@@ -367,6 +381,262 @@ test("BM PL: GetPhase reads CDLedger:SecondsSinceCast for the 15s burst window",
     advance_time(2)
     assert_true(p:GetPhase() == nil,
         "After 16s the 15s Burst window has closed even though the 30s CD is still running")
+end)
+
+test("issue #93 BM PL: ComputeQueue pins Bestial Wrath even when AC omits the recast", function()
+    local p = P("Hunter.BM.PackLeader")
+    local Engine = TrueShot.Engine
+    Engine.activeProfile = p
+    Engine:RebuildBlacklist()
+    set_ac_state(true, 56641, { 56641, 34026, 217200 })
+
+    local queue = Engine:ComputeQueue(3)
+    assert_eq(queue[1], 19574,
+        "Pack Leader must actively pin Bestial Wrath when it is ready, even if Blizzard AC omits it")
+    assert_eq(Engine.lastQueueMeta.source, "hybrid")
+    assert_eq(Engine.lastQueueMeta.reason, "Bestial Wrath")
+    assert_eq(Engine.lastQueueMeta.bucket, "cooldown")
+end)
+
+test("issue #93 BM PL: local BW cast suppresses the BW pin and hands slot 1 to Stampede", function()
+    local p = P("Hunter.BM.PackLeader")
+    local Engine = TrueShot.Engine
+    Engine.activeProfile = p
+    Engine:RebuildBlacklist()
+
+    p:OnSpellCast(19574)
+    set_ac_state(true, 56641, { 56641, 34026, 217200 })
+
+    assert_true(p:EvalCondition({ type = "bw_on_cd" }),
+        "After the local cast event, the Pack Leader local BW timer must be active immediately")
+
+    local queue = Engine:ComputeQueue(3)
+    assert_eq(queue[1], 34026,
+        "After BW starts its cooldown, the post-BW Stampede Kill Command should take over slot 1")
+    assert_eq(Engine.lastQueueMeta.reason, "Stampede")
+end)
+
+test("issue #93 BM PL: unusable AC Kill Command must not occupy queue slot 1", function()
+    local p = P("Hunter.BM.PackLeader")
+    local Engine = TrueShot.Engine
+    Engine.activeProfile = p
+    Engine:RebuildBlacklist()
+
+    p:OnSpellCast(19574)   -- BW
+    p:OnSpellCast(34026)   -- consume Stampede, arm KC anti-repeat
+    p:OnSpellCast(217200)  -- real filler clears anti-repeat; BW stays on CD
+
+    _spell_usable[34026] = false -- KC still on cooldown in the live client
+    set_ac_state(true, 34026, { 34026, 217200, 56641 })
+
+    local queue = Engine:ComputeQueue(3)
+    assert_true(queue[1] ~= 34026,
+        "An unusable AC primary spell must be dropped instead of occupying slot 1")
+end)
+
+test("issue #93 BM PL: cooldown snapshot blocks AC Kill Command even when IsSpellUsable stays true", function()
+    local p = P("Hunter.BM.PackLeader")
+    local Engine = TrueShot.Engine
+    Engine.activeProfile = p
+    Engine:RebuildBlacklist()
+
+    p:OnSpellCast(19574)
+    p:OnSpellCast(34026)
+    p:OnSpellCast(217200)
+
+    _spell_cooldowns[34026] = {
+        startTime = GetTime() - 1,
+        duration = 3,
+        modRate = 1,
+    }
+    _spell_usable[34026] = true
+    set_ac_state(true, 34026, { 34026, 217200, 56641 })
+
+    local queue = Engine:ComputeQueue(3)
+    assert_true(queue[1] ~= 34026,
+        "Readable cooldown state must override the misleading IsSpellUsable=true result for KC")
+end)
+
+test("issue #93 BM PL: Barbed Shot with one charge stays castable despite recharge timer", function()
+    local p = P("Hunter.BM.PackLeader")
+    local Engine = TrueShot.Engine
+    Engine.activeProfile = p
+    Engine:RebuildBlacklist()
+
+    p:OnSpellCast(19574)
+    p:OnSpellCast(34026)
+    p:OnSpellCast(56641) -- filler clears KC anti-repeat while BW stays on CD
+
+    set_charges(217200, 1, 2)
+    _spell_cooldowns[217200] = {
+        startTime = GetTime() - 2,
+        duration = 12,
+        modRate = 1,
+    }
+    _spell_usable[217200] = true
+    set_ac_state(true, 217200, { 217200, 56641, 34026 })
+
+    local queue = Engine:ComputeQueue(3)
+    assert_eq(queue[1], 217200,
+        "A charge-based spell with one available charge must stay castable even while its second charge is recharging")
+end)
+
+test("issue #93 BM PL: prefer Barbed Shot when KC is not castable", function()
+    local p = P("Hunter.BM.PackLeader")
+    local Engine = TrueShot.Engine
+    Engine.activeProfile = p
+    Engine:RebuildBlacklist()
+
+    p:OnSpellCast(19574)
+    p:OnSpellCast(34026)
+    p:OnSpellCast(56641) -- clear NA anti-repeat while BW stays on CD
+
+    _spell_cooldowns[34026] = {
+        startTime = GetTime() - 1,
+        duration = 3,
+        modRate = 1,
+    }
+    _spell_usable[34026] = true
+    set_charges(217200, 1, 2)
+    set_ac_state(true, 34026, { 34026, 217200, 56641 })
+
+    local queue = Engine:ComputeQueue(3)
+    assert_eq(queue[1], 217200,
+        "Pack Leader should surface Barbed Shot as the first filler when KC is not currently castable")
+    assert_eq(Engine.lastQueueMeta.source, "hybrid")
+    assert_eq(Engine.lastQueueMeta.reason, "Barbed Shot Filler")
+    assert_eq(Engine.lastQueueMeta.bucket, "barbed_filler")
+end)
+
+test("issue #93 BM PL: prefer Cobra Shot when KC is not castable and Barbed Shot has no charge", function()
+    local p = P("Hunter.BM.PackLeader")
+    local Engine = TrueShot.Engine
+    Engine.activeProfile = p
+    Engine:RebuildBlacklist()
+
+    p:OnSpellCast(19574)
+    p:OnSpellCast(34026)
+    p:OnSpellCast(217200)
+
+    _spell_cooldowns[34026] = {
+        startTime = GetTime() - 1,
+        duration = 3,
+        modRate = 1,
+    }
+    _spell_usable[34026] = true
+    set_charges(217200, 0, 2)
+    _spell_usable[217200] = false
+    set_ac_state(true, 34026, { 34026, 217200, 56641 })
+
+    local queue = Engine:ComputeQueue(3)
+    assert_eq(queue[1], 56641,
+        "Cobra Shot should be the fallback filler when KC is not castable and Barbed Shot is unavailable")
+    assert_eq(Engine.lastQueueMeta.source, "hybrid")
+    assert_eq(Engine.lastQueueMeta.reason, "Cobra Shot Filler")
+    assert_eq(Engine.lastQueueMeta.bucket, "cobra_filler")
+end)
+
+test("issue #93 BM PL: low-focus Cobra blacklist must not fire when KC only looks usable", function()
+    local p = P("Hunter.BM.PackLeader")
+    local Engine = TrueShot.Engine
+    Engine.activeProfile = p
+    Engine:RebuildBlacklist()
+
+    p:OnSpellCast(19574)
+    p:OnSpellCast(34026)
+    p:OnSpellCast(217200)
+
+    set_power(40)
+    _spell_cooldowns[34026] = {
+        startTime = GetTime() - 1,
+        duration = 3,
+        modRate = 1,
+    }
+    _spell_usable[34026] = true
+    set_charges(217200, 0, 2)
+    _spell_usable[217200] = false
+    set_ac_state(true, 34026, { 34026, 217200, 56641 })
+
+    local queue = Engine:ComputeQueue(3)
+    assert_eq(queue[1], 56641,
+        "The Cobra focus-pool guard must key off true castability, not IsSpellUsable=true on a cooling-down KC")
+    assert_eq(Engine.lastQueueMeta.source, "hybrid")
+    assert_eq(Engine.lastQueueMeta.bucket, "cobra_filler")
+end)
+
+test("issue #93 BM PL: Barbed Shot gets a dedicated BW setup bucket inside the final 3s", function()
+    local p = P("Hunter.BM.PackLeader")
+    local Engine = TrueShot.Engine
+    Engine.activeProfile = p
+    Engine:RebuildBlacklist()
+
+    p.state.lastBWCast = GetTime() - 27.5 -- ~2.5s left on the local 30s BW cooldown
+    set_charges(217200, 1, 2)
+    set_ac_state(true, 56641, { 56641, 217200, 34026 })
+
+    local queue = Engine:ComputeQueue(3)
+    assert_eq(queue[1], 217200,
+        "When BW is due within 3s, Barbed Shot should surface from the BW-setup bucket")
+    assert_eq(Engine.lastQueueMeta.source, "hybrid")
+    assert_eq(Engine.lastQueueMeta.reason, "BW Setup")
+    assert_eq(Engine.lastQueueMeta.bucket, "bw_setup")
+end)
+
+test("issue #93 BM PL: Barbed Shot recent guard hands the next filler to Cobra Shot", function()
+    local p = P("Hunter.BM.PackLeader")
+    local Engine = TrueShot.Engine
+    Engine.activeProfile = p
+    Engine:RebuildBlacklist()
+
+    p:OnSpellCast(19574)
+    p:OnSpellCast(34026)
+    p:OnSpellCast(217200)
+
+    _spell_cooldowns[34026] = {
+        startTime = GetTime() - 1,
+        duration = 3,
+        modRate = 1,
+    }
+    _spell_usable[34026] = true
+    set_charges(217200, 1, 2)
+    set_ac_state(true, 217200, { 217200, 56641, 34026 })
+
+    assert_true(p:EvalCondition({ type = "barbed_recent" }),
+        "Immediately after Barbed Shot, the profile should mark it as recent")
+
+    local queue = Engine:ComputeQueue(3)
+    assert_eq(queue[1], 56641,
+        "Immediately after casting Barbed Shot, the overlay should advance to Cobra Shot instead of sticking on Barbed Shot")
+    assert_eq(Engine.lastQueueMeta.reason, "Cobra Shot Filler")
+end)
+
+test("issue #93 BM PL: Barbed Shot recent guard expires and allows Barbed Shot again", function()
+    local p = P("Hunter.BM.PackLeader")
+    local Engine = TrueShot.Engine
+    Engine.activeProfile = p
+    Engine:RebuildBlacklist()
+
+    p:OnSpellCast(19574)
+    p:OnSpellCast(34026)
+    p:OnSpellCast(217200)
+
+    _spell_cooldowns[34026] = {
+        startTime = GetTime() - 1,
+        duration = 3,
+        modRate = 1,
+    }
+    _spell_usable[34026] = true
+    set_charges(217200, 1, 2)
+    set_ac_state(true, 217200, { 217200, 56641, 34026 })
+
+    advance_time(1.5)
+    assert_false(p:EvalCondition({ type = "barbed_recent" }),
+        "The recent Barbed Shot guard should be short-lived and expire after the immediate post-cast window")
+
+    local queue = Engine:ComputeQueue(3)
+    assert_eq(queue[1], 217200,
+        "Once the short Barbed Shot recent window expires, Barbed Shot may surface again if KC is still not castable")
+    assert_eq(Engine.lastQueueMeta.reason, "Barbed Shot Filler")
 end)
 
 test("BM PL: Wild Thrash timer persists across OnCombatEnd (ledger-owned)", function()
