@@ -20,7 +20,11 @@ local Profile = {
     id = "Druid.Feral.Wildstalker",
     displayName = "Feral Wildstalker",
     specID = 103,
-    markerSpell = 439531, -- Bloodseeker Vines (Wildstalker exclusive)
+    -- Hero-tree detection: Bloodseeker Vines is proc-driven hidden state, not
+    -- a reliable spellbook marker. Detect Wildstalker through Blizzard's
+    -- authoritative hero-talent SubTree API instead. SubTreeID 22 identifies
+    -- Wildstalker for both Feral and Restoration Druid. Reported as issue #92.
+    heroTalentSubTreeID = 22,
     version = 1,
 
     state = {

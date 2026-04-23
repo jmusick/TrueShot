@@ -41,7 +41,7 @@ We currently treat them as opportunistic expansion paths: they can improve over 
 | **Druid** | Feral, Balance | 4 | Tiger's Fury/Berserk and Celestial Alignment burst tracking. Resource-dependent (Energy, Astral Power) limits overrides. |
 | **Mage** | Fire, Frost, Arcane | 6 | Combustion, Frozen Orb, Arcane Surge burst windows. Frost shatter combo (Flurry > Ice Lance). |
 
-All 20 profiles across 4 classes support automatic hero path detection via `IsPlayerSpell` markers, but only Hunter should currently be read as the primary productized support lane.
+All 20 profiles across 4 classes support automatic hero path detection, primarily via `IsPlayerSpell` markers and, where Blizzard's spellbook surface is not reliable enough, via `C_ClassTalents.GetActiveHeroTalentSpec()` subtree IDs. Hunter should still be read as the primary productized support lane.
 
 ## How It Works
 

@@ -72,6 +72,9 @@ dofile("State/CDLedger.lua")
 -- exercised end to end (no profile-capture stub).
 dofile("Profiles/Frost_Frostfire.lua")
 dofile("Profiles/Frost_Spellslinger.lua")
+-- Load Feral Druid profiles to cover the issue #92 Wildstalker activation path.
+dofile("Profiles/Feral_DruidOfTheClaw.lua")
+dofile("Profiles/Feral_Wildstalker.lua")
 -- Load one Hunter profile to cover the markerSpell regression path.
 dofile("Profiles/BM_DarkRanger.lua")
 
@@ -129,6 +132,25 @@ test("Frost_Spellslinger declares heroTalentSubTreeID = 40 and no 443722 marker"
         "Frost Spellslinger must not keep the buff-only 443722 marker")
 end)
 
+test("Feral_Wildstalker declares heroTalentSubTreeID = 22 and no 439531 marker", function()
+    local feral_candidates = TrueShot.Profiles[103]
+    assert_true(feral_candidates ~= nil, "Feral candidates must be registered for specID 103")
+    local wildstalker = nil
+    local druid_of_the_claw = nil
+    for _, p in ipairs(feral_candidates) do
+        if p.id == "Druid.Feral.Wildstalker" then wildstalker = p end
+        if p.id == "Druid.Feral.DruidOfTheClaw" then druid_of_the_claw = p end
+    end
+    assert_true(wildstalker ~= nil, "Feral Wildstalker profile must register")
+    assert_true(druid_of_the_claw ~= nil, "Feral Druid of the Claw profile must register")
+    assert_eq(wildstalker.heroTalentSubTreeID, 22,
+        "Feral Wildstalker must declare heroTalentSubTreeID 22 for Blizzard's TraitSubTree")
+    assert_true(wildstalker.markerSpell ~= 439531,
+        "Feral Wildstalker must not keep the proc-driven 439531 marker")
+    assert_eq(druid_of_the_claw.heroTalentSubTreeID, 21,
+        "Feral Druid of the Claw must declare heroTalentSubTreeID 21 for Blizzard's TraitSubTree")
+end)
+
 ------------------------------------------------------------------------
 -- Issue #88: hero-talent-based activation
 ------------------------------------------------------------------------
@@ -151,6 +173,19 @@ test("issue #88: no active hero talent -> Frost_Frostfire fallback still activat
     assert_profile("Mage.Frost.Frostfire")
 end)
 
+test("issue #92: Wildstalker active -> Feral_Wildstalker wins over Druid of the Claw marker", function()
+    _active_hero_subtree = 22 -- Blizzard SubTreeID for Wildstalker
+    _player_spells[441583] = true -- Ravage, Druid of the Claw marker fallback
+    Engine:ActivateProfile(103)
+    assert_profile("Druid.Feral.Wildstalker")
+end)
+
+test("issue #92: Druid of the Claw active -> Feral_DruidOfTheClaw wins", function()
+    _active_hero_subtree = 21 -- Blizzard SubTreeID for Druid of the Claw
+    Engine:ActivateProfile(103)
+    assert_profile("Druid.Feral.DruidOfTheClaw")
+end)
+
 test("issue #88 regression guard: markerSpell path still works for Hunter", function()
     -- Spellslinger fix must not break the existing IsPlayerSpell-based
     -- activation path that BM Dark Ranger (spec 253) relies on.
@@ -166,6 +201,13 @@ test("issue #88 regression guard: subTreeID path is tried before markerSpell", f
     _active_hero_subtree = 40
     Engine:ActivateProfile(64)
     assert_profile("Mage.Frost.Spellslinger")
+end)
+
+test("issue #92 regression guard: Feral subTreeID path is tried before legacy markerSpell", function()
+    _active_hero_subtree = 22
+    _player_spells[441583] = true -- Druid of the Claw marker would win on legacy path
+    Engine:ActivateProfile(103)
+    assert_profile("Druid.Feral.Wildstalker")
 end)
 
 test("C_ClassTalents API missing -> engine degrades to markerSpell path", function()

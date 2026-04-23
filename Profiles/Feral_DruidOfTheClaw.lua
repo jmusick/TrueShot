@@ -19,6 +19,12 @@ local Profile = {
     id = "Druid.Feral.DruidOfTheClaw",
     displayName = "Feral Druid of the Claw",
     specID = 103,
+    -- Hero-tree detection: prefer Blizzard's authoritative hero-talent
+    -- SubTree API when it is available. SubTreeID 21 identifies Druid of the
+    -- Claw for both Feral and Guardian Druid. Keep the Ravage marker as a
+    -- legacy fallback only, so activation still degrades cleanly if the
+    -- C_ClassTalents surface is unavailable.
+    heroTalentSubTreeID = 21,
     markerSpell = 441583, -- Ravage (Druid of the Claw exclusive)
     version = 1,
 
