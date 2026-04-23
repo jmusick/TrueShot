@@ -73,6 +73,15 @@ end
 ------------------------------------------------------------------------
 
 CDLedger.spec = {
+    -- Berserk (Feral): 180s flat baseline. Incarnation: Avatar of Ashamane
+    -- spellbook-overrides Berserk for talented Feral Druids, but both spells
+    -- share the same real cooldown and should block the same queue rule.
+    -- Sources: Wowhead spell pages for Berserk (50334, "Cooldown 3 minutes")
+    -- and Incarnation: Avatar of Ashamane (102543, "Cooldown 3 minutes"),
+    -- both read 2026-04-23.
+    [106951]  = { base_ms = 180000, haste_scaled = false, shared_cd = { [102543] = true } },
+    [102543]  = { base_ms = 180000, haste_scaled = false, shared_cd = { [106951] = true } },
+
     -- Bestial Wrath (BM): 30s flat. Source: Azortharion, Icy Veins BM Hunter
     -- Rotation, guide updated 2026-04-10, Patch 12.0.4.
     -- URL: https://www.icy-veins.com/wow/beast-mastery-hunter-pve-dps-rotation-cooldowns-abilities
@@ -149,10 +158,19 @@ function CDLedger:OnSpellCastSucceeded(spellID)
     if entry then
         local cdSeconds = ResolveBaseSeconds(spellID)
         if cdSeconds and cdSeconds > 0 then
-            self.state[spellID] = {
+            local cooldownState = {
                 cast_time = now,
                 expected_ready = now + cdSeconds,
             }
+            self.state[spellID] = cooldownState
+            if entry.shared_cd then
+                for sharedSpellID in pairs(entry.shared_cd) do
+                    self.state[sharedSpellID] = {
+                        cast_time = cooldownState.cast_time,
+                        expected_ready = cooldownState.expected_ready,
+                    }
+                end
+            end
         end
     end
 
@@ -228,10 +246,20 @@ function CDLedger:ReseedFromCooldownAPI()
             local elapsed = now - snapshot.startTime
             local remaining = (snapshot.startTime + snapshot.duration) - now
             if remaining > 0 then
-                self.state[spellID] = {
+                local cooldownState = {
                     cast_time = now - elapsed,
                     expected_ready = now + remaining,
                 }
+                self.state[spellID] = cooldownState
+                local entry = self.spec[spellID]
+                if entry and entry.shared_cd then
+                    for sharedSpellID in pairs(entry.shared_cd) do
+                        self.state[sharedSpellID] = {
+                            cast_time = cooldownState.cast_time,
+                            expected_ready = cooldownState.expected_ready,
+                        }
+                    end
+                end
             end
         end
     end

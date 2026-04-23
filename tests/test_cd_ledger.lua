@@ -108,11 +108,36 @@ end
 -- Spec coverage
 ------------------------------------------------------------------------
 
-test("Spec covers Bestial Wrath, Trueshot, Wild Thrash, Boomstick", function()
+test("Spec covers Berserk, Incarnation, Bestial Wrath, Trueshot, Wild Thrash, Boomstick", function()
+    assert_true(CDLedger.spec[106951],  "Berserk (106951) in spec")
+    assert_true(CDLedger.spec[102543],  "Incarnation: Avatar of Ashamane (102543) in spec")
     assert_true(CDLedger.spec[19574],   "Bestial Wrath (19574) in spec")
     assert_true(CDLedger.spec[288613],  "Trueshot (288613) in spec")
     assert_true(CDLedger.spec[1264359], "Wild Thrash (1264359) in spec")
     assert_true(CDLedger.spec[1261193], "Boomstick (1261193) in spec")
+end)
+
+test("Berserk and Incarnation share the same cooldown ledger state", function()
+    CDLedger:OnSpellCastSucceeded(102543)
+    assert_true(CDLedger:IsOnCooldown(102543),
+        "Incarnation should start its own cooldown entry")
+    assert_true(CDLedger:IsOnCooldown(106951),
+        "Incarnation should also block the Berserk entry the profile queries")
+    assert_near(CDLedger:SecondsUntilReady(106951), 180, 0.01,
+        "Shared Berserk cooldown should inherit Incarnation's 3min timer")
+end)
+
+test("Cooldown API reseed propagates across Berserk/Incarnation shared cooldown", function()
+    _cooldown_snapshot[102543] = {
+        startTime = 940,
+        duration = 180,
+        isEnabled = true,
+        modRate = 1,
+    }
+    CDLedger:ReseedFromCooldownAPI()
+    assert_true(CDLedger:IsOnCooldown(106951),
+        "A reseeded Incarnation cooldown should also block Berserk")
+    assert_near(CDLedger:SecondsUntilReady(106951), 120, 0.01)
 end)
 
 test("Non-tracked spell is ignored on cast", function()
