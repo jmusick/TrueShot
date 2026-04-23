@@ -508,9 +508,11 @@ function Engine:ActivateProfile(specID)
         end
     end
 
-    -- Fallback: first profile without either marker, or first profile overall.
+    -- Fallback: first profile without markerSpell. Profiles that already
+    -- declare heroTalentSubTreeID but intentionally omit markerSpell still
+    -- need a deterministic fallback path when C_ClassTalents is unavailable.
     for _, profile in ipairs(candidates) do
-        if not profile.markerSpell and not profile.heroTalentSubTreeID then
+        if not profile.markerSpell then
             return adopt(profile)
         end
     end

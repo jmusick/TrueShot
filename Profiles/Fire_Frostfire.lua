@@ -9,7 +9,8 @@ local Profile = {
     id = "Mage.Fire.Frostfire",
     displayName = "Fire Frostfire",
     specID = 63,
-    -- No markerSpell: fallback when Sunfury's Emberwing Heatwave not detected
+    heroTalentSubTreeID = 41,
+    -- No markerSpell: fallback when Sunfury's marker is unavailable
     version = 1,
 
     state = {

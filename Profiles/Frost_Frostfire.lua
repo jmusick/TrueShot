@@ -9,7 +9,8 @@ local Profile = {
     id = "Mage.Frost.Frostfire",
     displayName = "Frost Frostfire",
     specID = 64,
-    -- No markerSpell: default Frost profile (100% meta usage)
+    heroTalentSubTreeID = 41,
+    -- No markerSpell: fallback when Spellslinger's subtree is unavailable
     version = 1,
 
     state = {

@@ -13,6 +13,7 @@ local Profile = {
     id = "DemonHunter.Havoc.AldrachiReaver",
     displayName = "Havoc Aldrachi Reaver",
     specID = 577,
+    heroTalentSubTreeID = 35,
     markerSpell = 442294, -- Reaver's Glaive (Aldrachi Reaver exclusive)
     version = 1,
 

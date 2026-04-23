@@ -35,6 +35,7 @@ local Profile = {
     id = "Hunter.BM.DarkRanger",
     displayName = "BM Dark Ranger",
     specID = 253,
+    heroTalentSubTreeID = 44,
     markerSpell = 466930, -- Black Arrow (Dark Ranger exclusive)
     version = 1,
 

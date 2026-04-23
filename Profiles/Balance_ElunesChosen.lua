@@ -17,6 +17,7 @@ local Profile = {
     id = "Druid.Balance.ElunesChosen",
     displayName = "Balance Elune's Chosen",
     specID = 102,
+    heroTalentSubTreeID = 24,
     markerSpell = 424058, -- Boundless Moonlight (Elune's Chosen exclusive)
     version = 1,
 

@@ -68,21 +68,76 @@ TrueShot.CustomProfile = { RegisterConditionSchema = function(_, _) end }
 dofile("Engine.lua")
 dofile("State/CDLedger.lua")
 
--- Load Frost profiles into the real Engine so the full activation path is
--- exercised end to end (no profile-capture stub).
-dofile("Profiles/Frost_Frostfire.lua")
-dofile("Profiles/Frost_Spellslinger.lua")
--- Load Feral Druid profiles to cover the issue #92 Wildstalker activation path.
+-- Load real profiles into the Engine so activation is exercised end to end.
+dofile("Profiles/Arcane_Spellslinger.lua")
+dofile("Profiles/Arcane_Sunfury.lua")
+dofile("Profiles/Balance_ElunesChosen.lua")
+dofile("Profiles/Balance_KeeperOfTheGrove.lua")
+dofile("Profiles/BM_DarkRanger.lua")
+dofile("Profiles/BM_PackLeader.lua")
+dofile("Profiles/Devourer_Annihilator.lua")
+dofile("Profiles/Devourer_VoidScarred.lua")
+dofile("Profiles/Fire_Frostfire.lua")
+dofile("Profiles/Fire_Sunfury.lua")
 dofile("Profiles/Feral_DruidOfTheClaw.lua")
 dofile("Profiles/Feral_Wildstalker.lua")
--- Load one Hunter profile to cover the markerSpell regression path.
-dofile("Profiles/BM_DarkRanger.lua")
+dofile("Profiles/Frost_Frostfire.lua")
+dofile("Profiles/Frost_Spellslinger.lua")
+dofile("Profiles/Havoc_AldrachiReaver.lua")
+dofile("Profiles/Havoc_FelScarred.lua")
+dofile("Profiles/MM_DarkRanger.lua")
+dofile("Profiles/MM_Sentinel.lua")
+dofile("Profiles/SV_PackLeader.lua")
+dofile("Profiles/SV_Sentinel.lua")
 
 local Engine = TrueShot.Engine
 
 ------------------------------------------------------------------------
 -- Test harness
 ------------------------------------------------------------------------
+
+local EXPECTED_PROFILES = {
+    [62] = {
+        ["Mage.Arcane.Spellslinger"]     = { subTreeID = 40, markerSpell = nil },
+        ["Mage.Arcane.Sunfury"]          = { subTreeID = 39, markerSpell = 1241462 },
+    },
+    [63] = {
+        ["Mage.Fire.Frostfire"]          = { subTreeID = 41, markerSpell = nil },
+        ["Mage.Fire.Sunfury"]            = { subTreeID = 39, markerSpell = 1250508 },
+    },
+    [64] = {
+        ["Mage.Frost.Frostfire"]         = { subTreeID = 41, markerSpell = nil },
+        ["Mage.Frost.Spellslinger"]      = { subTreeID = 40, markerSpell = nil },
+    },
+    [102] = {
+        ["Druid.Balance.ElunesChosen"]      = { subTreeID = 24, markerSpell = 424058 },
+        ["Druid.Balance.KeeperOfTheGrove"]  = { subTreeID = 23, markerSpell = nil },
+    },
+    [103] = {
+        ["Druid.Feral.DruidOfTheClaw"]   = { subTreeID = 21, markerSpell = 441583 },
+        ["Druid.Feral.Wildstalker"]      = { subTreeID = 22, markerSpell = nil },
+    },
+    [253] = {
+        ["Hunter.BM.DarkRanger"]         = { subTreeID = 44, markerSpell = 466930 },
+        ["Hunter.BM.PackLeader"]         = { subTreeID = 43, markerSpell = nil },
+    },
+    [254] = {
+        ["Hunter.MM.DarkRanger"]         = { subTreeID = 44, markerSpell = 466930 },
+        ["Hunter.MM.Sentinel"]           = { subTreeID = 42, markerSpell = nil },
+    },
+    [255] = {
+        ["Hunter.SV.PackLeader"]         = { subTreeID = 43, markerSpell = nil },
+        ["Hunter.SV.Sentinel"]           = { subTreeID = 42, markerSpell = 1264902 },
+    },
+    [577] = {
+        ["DemonHunter.Havoc.AldrachiReaver"] = { subTreeID = 35, markerSpell = 442294 },
+        ["DemonHunter.Havoc.FelScarred"]     = { subTreeID = 34, markerSpell = nil },
+    },
+    [1480] = {
+        ["DemonHunter.Devourer.Annihilator"] = { subTreeID = 63, markerSpell = 1253304 },
+        ["DemonHunter.Devourer.VoidScarred"] = { subTreeID = 34, markerSpell = nil },
+    },
+}
 
 local passed, failed = 0, 0
 
@@ -113,110 +168,117 @@ local function assert_profile(id)
     assert_eq(active.id, id, "Engine activated the wrong profile")
 end
 
-------------------------------------------------------------------------
--- Structural guards: the fix itself
-------------------------------------------------------------------------
-
-test("Frost_Spellslinger declares heroTalentSubTreeID = 40 and no 443722 marker", function()
-    local frost_candidates = TrueShot.Profiles[64]
-    assert_true(frost_candidates ~= nil, "Frost candidates must be registered for specID 64")
-    local spellslinger = nil
-    for _, p in ipairs(frost_candidates) do
-        if p.id == "Mage.Frost.Spellslinger" then spellslinger = p end
+local function assert_profile_metadata(specID, profileID, expected)
+    local candidates = TrueShot.Profiles[specID]
+    assert_true(candidates ~= nil, "Candidates must exist for specID " .. tostring(specID))
+    local found = nil
+    for _, p in ipairs(candidates) do
+        if p.id == profileID then
+            found = p
+            break
+        end
     end
-    assert_true(spellslinger ~= nil, "Frost Spellslinger profile must register")
-    assert_eq(spellslinger.heroTalentSubTreeID, 40,
-        "Frost Spellslinger must declare heroTalentSubTreeID 40 for Blizzard's TraitSubTree")
-    -- The old proc-buff marker must be gone because it could never match.
-    assert_true(spellslinger.markerSpell ~= 443722,
-        "Frost Spellslinger must not keep the buff-only 443722 marker")
-end)
+    assert_true(found ~= nil, "Profile must register: " .. profileID)
+    assert_eq(found.heroTalentSubTreeID, expected.subTreeID,
+        profileID .. " must declare heroTalentSubTreeID " .. tostring(expected.subTreeID))
+    assert_eq(found.markerSpell, expected.markerSpell,
+        profileID .. " has the wrong fallback markerSpell declaration")
+end
 
-test("Feral_Wildstalker declares heroTalentSubTreeID = 22 and no 439531 marker", function()
-    local feral_candidates = TrueShot.Profiles[103]
-    assert_true(feral_candidates ~= nil, "Feral candidates must be registered for specID 103")
-    local wildstalker = nil
-    local druid_of_the_claw = nil
-    for _, p in ipairs(feral_candidates) do
-        if p.id == "Druid.Feral.Wildstalker" then wildstalker = p end
-        if p.id == "Druid.Feral.DruidOfTheClaw" then druid_of_the_claw = p end
+------------------------------------------------------------------------
+-- Structural guards: all supported profiles are on the subtree path
+------------------------------------------------------------------------
+
+test("All supported hero-path profiles declare subtree IDs and expected fallback markers", function()
+    for specID, profiles in pairs(EXPECTED_PROFILES) do
+        for profileID, expected in pairs(profiles) do
+            assert_profile_metadata(specID, profileID, expected)
+        end
     end
-    assert_true(wildstalker ~= nil, "Feral Wildstalker profile must register")
-    assert_true(druid_of_the_claw ~= nil, "Feral Druid of the Claw profile must register")
-    assert_eq(wildstalker.heroTalentSubTreeID, 22,
-        "Feral Wildstalker must declare heroTalentSubTreeID 22 for Blizzard's TraitSubTree")
-    assert_true(wildstalker.markerSpell ~= 439531,
-        "Feral Wildstalker must not keep the proc-driven 439531 marker")
-    assert_eq(druid_of_the_claw.heroTalentSubTreeID, 21,
-        "Feral Druid of the Claw must declare heroTalentSubTreeID 21 for Blizzard's TraitSubTree")
 end)
 
 ------------------------------------------------------------------------
--- Issue #88: hero-talent-based activation
+-- Hero-talent-based activation by spec/subtree
 ------------------------------------------------------------------------
 
-test("issue #88: Spellslinger active -> Frost_Spellslinger wins over Frostfire fallback", function()
-    _active_hero_subtree = 40 -- Blizzard SubTreeID for Spellslinger
-    Engine:ActivateProfile(64)
-    assert_profile("Mage.Frost.Spellslinger")
+local ACTIVATION_CASES = {
+    { specID = 62,   subTreeID = 39, expected = "Mage.Arcane.Sunfury" },
+    { specID = 62,   subTreeID = 40, expected = "Mage.Arcane.Spellslinger", conflictMarker = 1241462 },
+    { specID = 63,   subTreeID = 39, expected = "Mage.Fire.Sunfury" },
+    { specID = 63,   subTreeID = 41, expected = "Mage.Fire.Frostfire", conflictMarker = 1250508 },
+    { specID = 64,   subTreeID = 40, expected = "Mage.Frost.Spellslinger" },
+    { specID = 64,   subTreeID = 41, expected = "Mage.Frost.Frostfire" },
+    { specID = 102,  subTreeID = 23, expected = "Druid.Balance.KeeperOfTheGrove", conflictMarker = 424058 },
+    { specID = 102,  subTreeID = 24, expected = "Druid.Balance.ElunesChosen" },
+    { specID = 103,  subTreeID = 21, expected = "Druid.Feral.DruidOfTheClaw" },
+    { specID = 103,  subTreeID = 22, expected = "Druid.Feral.Wildstalker", conflictMarker = 441583 },
+    { specID = 253,  subTreeID = 43, expected = "Hunter.BM.PackLeader", conflictMarker = 466930 },
+    { specID = 253,  subTreeID = 44, expected = "Hunter.BM.DarkRanger" },
+    { specID = 254,  subTreeID = 42, expected = "Hunter.MM.Sentinel", conflictMarker = 466930 },
+    { specID = 254,  subTreeID = 44, expected = "Hunter.MM.DarkRanger" },
+    { specID = 255,  subTreeID = 42, expected = "Hunter.SV.Sentinel" },
+    { specID = 255,  subTreeID = 43, expected = "Hunter.SV.PackLeader", conflictMarker = 1264902 },
+    { specID = 577,  subTreeID = 34, expected = "DemonHunter.Havoc.FelScarred", conflictMarker = 442294 },
+    { specID = 577,  subTreeID = 35, expected = "DemonHunter.Havoc.AldrachiReaver" },
+    { specID = 1480, subTreeID = 34, expected = "DemonHunter.Devourer.VoidScarred", conflictMarker = 1253304 },
+    { specID = 1480, subTreeID = 63, expected = "DemonHunter.Devourer.Annihilator" },
+}
+
+test("Hero subtree activation works across all supported spec pairs", function()
+    for _, tc in ipairs(ACTIVATION_CASES) do
+        _active_hero_subtree = tc.subTreeID
+        _player_spells = {}
+        if tc.conflictMarker then
+            _player_spells[tc.conflictMarker] = true
+        end
+        Engine:ActivateProfile(tc.specID)
+        assert_profile(tc.expected)
+    end
 end)
 
-test("issue #88: Frostfire SubTreeID -> markerless Frost_Frostfire wins", function()
-    _active_hero_subtree = 41 -- Frostfire SubTreeID (profile has no match)
-    Engine:ActivateProfile(64)
-    assert_profile("Mage.Frost.Frostfire")
-end)
+------------------------------------------------------------------------
+-- Fallback / degradation behavior
+------------------------------------------------------------------------
 
-test("issue #88: no active hero talent -> Frost_Frostfire fallback still activates", function()
-    _active_hero_subtree = nil
-    Engine:ActivateProfile(64)
-    assert_profile("Mage.Frost.Frostfire")
-end)
-
-test("issue #92: Wildstalker active -> Feral_Wildstalker wins over Druid of the Claw marker", function()
-    _active_hero_subtree = 22 -- Blizzard SubTreeID for Wildstalker
-    _player_spells[441583] = true -- Ravage, Druid of the Claw marker fallback
-    Engine:ActivateProfile(103)
-    assert_profile("Druid.Feral.Wildstalker")
-end)
-
-test("issue #92: Druid of the Claw active -> Feral_DruidOfTheClaw wins", function()
-    _active_hero_subtree = 21 -- Blizzard SubTreeID for Druid of the Claw
-    Engine:ActivateProfile(103)
-    assert_profile("Druid.Feral.DruidOfTheClaw")
-end)
-
-test("issue #88 regression guard: markerSpell path still works for Hunter", function()
-    -- Spellslinger fix must not break the existing IsPlayerSpell-based
-    -- activation path that BM Dark Ranger (spec 253) relies on.
-    _player_spells[466930] = true -- Black Arrow, DR markerSpell
-    Engine:ActivateProfile(253)
-    assert_profile("Hunter.BM.DarkRanger")
-end)
-
-test("issue #88 regression guard: subTreeID path is tried before markerSpell", function()
-    -- If both a subTreeID match and a markerSpell match were possible, the
-    -- subTreeID path must win because it is the authoritative API. Prove
-    -- this by activating Frost while IsPlayerSpell would match nothing.
-    _active_hero_subtree = 40
-    Engine:ActivateProfile(64)
-    assert_profile("Mage.Frost.Spellslinger")
-end)
-
-test("issue #92 regression guard: Feral subTreeID path is tried before legacy markerSpell", function()
-    _active_hero_subtree = 22
-    _player_spells[441583] = true -- Druid of the Claw marker would win on legacy path
-    Engine:ActivateProfile(103)
-    assert_profile("Druid.Feral.Wildstalker")
-end)
-
-test("C_ClassTalents API missing -> engine degrades to markerSpell path", function()
+test("Marker path still works when the hero API is unavailable", function()
     local saved = _G.C_ClassTalents.GetActiveHeroTalentSpec
     _G.C_ClassTalents.GetActiveHeroTalentSpec = nil
-    _player_spells[466930] = true
+    _player_spells[466930] = true -- Hunter BM Dark Ranger marker
     Engine:ActivateProfile(253)
     _G.C_ClassTalents.GetActiveHeroTalentSpec = saved
     assert_profile("Hunter.BM.DarkRanger")
+end)
+
+test("Subtree-only fallback profile still activates when the hero API is unavailable", function()
+    local saved = _G.C_ClassTalents.GetActiveHeroTalentSpec
+    _G.C_ClassTalents.GetActiveHeroTalentSpec = nil
+    Engine:ActivateProfile(253)
+    _G.C_ClassTalents.GetActiveHeroTalentSpec = saved
+    assert_profile("Hunter.BM.PackLeader")
+end)
+
+test("Balance fallback profile still activates when the hero API is unavailable and the marker does not match", function()
+    local saved = _G.C_ClassTalents.GetActiveHeroTalentSpec
+    _G.C_ClassTalents.GetActiveHeroTalentSpec = nil
+    Engine:ActivateProfile(102)
+    _G.C_ClassTalents.GetActiveHeroTalentSpec = saved
+    assert_profile("Druid.Balance.KeeperOfTheGrove")
+end)
+
+test("Havoc fallback profile still activates when the hero API is unavailable and the marker does not match", function()
+    local saved = _G.C_ClassTalents.GetActiveHeroTalentSpec
+    _G.C_ClassTalents.GetActiveHeroTalentSpec = nil
+    Engine:ActivateProfile(577)
+    _G.C_ClassTalents.GetActiveHeroTalentSpec = saved
+    assert_profile("DemonHunter.Havoc.FelScarred")
+end)
+
+test("Devourer fallback profile still activates when the hero API is unavailable and the marker does not match", function()
+    local saved = _G.C_ClassTalents.GetActiveHeroTalentSpec
+    _G.C_ClassTalents.GetActiveHeroTalentSpec = nil
+    Engine:ActivateProfile(1480)
+    _G.C_ClassTalents.GetActiveHeroTalentSpec = saved
+    assert_profile("DemonHunter.Devourer.VoidScarred")
 end)
 
 test("C_ClassTalents API returns a secret value -> engine ignores it", function()

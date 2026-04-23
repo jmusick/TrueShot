@@ -62,6 +62,7 @@ local Profile = {
     id = "Hunter.MM.Sentinel",
     displayName = "MM Sentinel",
     specID = 254,
+    heroTalentSubTreeID = 42,
     -- No markerSpell: this profile serves as the MM fallback
     -- when Dark Ranger's Black Arrow marker does not match
     version = 1,

@@ -13,7 +13,8 @@ local Profile = {
     id = "DemonHunter.Havoc.FelScarred",
     displayName = "Havoc Fel-Scarred",
     specID = 577,
-    markerSpell = 452402, -- Demonsurge (Fel-Scarred exclusive)
+    heroTalentSubTreeID = 34,
+    -- No markerSpell: fallback when Aldrachi Reaver's marker is unavailable
     version = 1,
 
     state = {

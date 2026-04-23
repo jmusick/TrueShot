@@ -10,6 +10,7 @@ local Profile = {
     id = "Mage.Arcane.Sunfury",
     displayName = "Arcane Sunfury",
     specID = 62,
+    heroTalentSubTreeID = 39,
     markerSpell = 1241462, -- Arcane Pulse (Sunfury exclusive, high M+ usage)
     version = 1,
 

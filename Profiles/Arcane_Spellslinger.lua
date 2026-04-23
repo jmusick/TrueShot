@@ -9,7 +9,8 @@ local Profile = {
     id = "Mage.Arcane.Spellslinger",
     displayName = "Arcane Spellslinger",
     specID = 62,
-    -- No markerSpell: fallback when Sunfury's Arcane Pulse not detected
+    heroTalentSubTreeID = 40,
+    -- No markerSpell: fallback when Sunfury's marker is unavailable
     version = 1,
 
     state = {

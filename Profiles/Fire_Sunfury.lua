@@ -13,6 +13,7 @@ local Profile = {
     id = "Mage.Fire.Sunfury",
     displayName = "Fire Sunfury",
     specID = 63,
+    heroTalentSubTreeID = 39,
     markerSpell = 1250508, -- Emberwing Heatwave (Sunfury exclusive)
     version = 1,
 

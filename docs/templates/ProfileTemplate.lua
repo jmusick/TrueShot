@@ -4,15 +4,16 @@
 -- Add the file to TrueShot.toc (after Engine.lua, before Core.lua) when ready.
 --
 -- Examples:
---   Hunter BM Dark Ranger: specID=253, markerSpell=466930 (Black Arrow)
---   Demon Hunter Havoc:    specID=577, markerSpell=nil (or hero-specific)
+--   Hunter BM Dark Ranger: specID=253, heroTalentSubTreeID=44, markerSpell=466930
+--   Demon Hunter Havoc:    specID=577, heroTalentSubTreeID=35, markerSpell=442294
 
 local Engine = TrueShot.Engine
 
 local Profile = {
     id = "Class.Spec.HeroPath",  -- e.g. "DemonHunter.Havoc.AldrachiReaver"
     specID = 0,                   -- WoW spec ID (GetSpecializationInfo)
-    markerSpell = nil,            -- hero-path exclusive spell for auto-detection (optional)
+    heroTalentSubTreeID = nil,    -- preferred hero-tree activation path (optional)
+    markerSpell = nil,            -- fallback spellbook marker if API is unavailable (optional)
 
     -- Keep state small, explicit, and tied to observable signals.
     state = {

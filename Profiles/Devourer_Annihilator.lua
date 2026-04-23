@@ -15,6 +15,7 @@ local Profile = {
     id = "DemonHunter.Devourer.Annihilator",
     displayName = "Devourer Annihilator",
     specID = 1480,
+    heroTalentSubTreeID = 63,
     markerSpell = 1253304, -- Voidfall (Annihilator exclusive keystone)
     version = 1,
 

@@ -53,6 +53,7 @@ local Profile = {
     id = "Hunter.SV.Sentinel",
     displayName = "SV Sentinel",
     specID = 255,
+    heroTalentSubTreeID = 42,
     markerSpell = SPELLS.MoonlightChakram,
     version = 1,
 

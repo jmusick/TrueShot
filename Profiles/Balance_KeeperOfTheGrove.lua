@@ -17,7 +17,8 @@ local Profile = {
     id = "Druid.Balance.KeeperOfTheGrove",
     displayName = "Balance Keeper of the Grove",
     specID = 102,
-    markerSpell = 428731, -- Harmony of the Grove (Keeper exclusive)
+    heroTalentSubTreeID = 23,
+    -- No markerSpell: fallback when Elune's Chosen marker is unavailable
     version = 1,
 
     state = {

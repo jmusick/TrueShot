@@ -13,16 +13,21 @@ Target shape for a modularized profile:
   id = "Hunter.BM.DarkRanger",
   class = "HUNTER",
   specID = 253,
-  markerSpell = 466930,  -- hero-path exclusive spell for auto-detection
+  heroTalentSubTreeID = 44, -- authoritative hero-tree SubTreeID from C_ClassTalents
+  markerSpell = 466930,     -- optional fallback if the hero-talent API is unavailable
   hero = "DarkRanger",
   state = { ... },
   rules = { ... },
 }
 ```
 
-### markerSpell (optional)
+### heroTalentSubTreeID (optional but preferred)
 
-When multiple profiles share the same `specID`, the engine uses `markerSpell` to pick the correct one. The engine calls `IsPlayerSpell(markerSpell)` during activation and selects the first profile whose marker is known to the player. Profiles without a `markerSpell` serve as fallback.
+When multiple profiles share the same `specID`, the preferred activation path is Blizzard's authoritative hero-tree API: `C_ClassTalents.GetActiveHeroTalentSpec()`. Profiles should declare the expected SubTreeID whenever the hero lane is known.
+
+### markerSpell (optional fallback)
+
+`markerSpell` is now a secondary activation path. The engine calls `IsPlayerSpell(markerSpell)` only after the `heroTalentSubTreeID` pass, so a reliable spellbook-exclusive marker can still cover API-unavailable edge cases. Profiles without a `markerSpell` serve as fallback.
 
 ## Required Behavior
 

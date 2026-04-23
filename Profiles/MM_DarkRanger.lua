@@ -52,6 +52,7 @@ local Profile = {
     id = "Hunter.MM.DarkRanger",
     displayName = "MM Dark Ranger",
     specID = 254,
+    heroTalentSubTreeID = 44,
     markerSpell = SPELLS.BlackArrow,
     version = 1,
 
